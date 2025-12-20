@@ -1,22 +1,15 @@
 import React, { useState, useEffect } from "react";
 import {
   CheckCircle2,
-  Pencil,
   ChevronRight,
   Plus,
-  Lock,
   Check,
   Heart,
-  Star,
-  Zap,
-  Flame,
   X,
   User, 
-  LogOut,
   Loader,
   Briefcase,
   MapPin,
-  MessageCircle,
   Camera,
   Upload,
   Ruler,
@@ -35,7 +28,6 @@ import {
   School,
   Building,
   Mic,
-  ListMusic,
   GraduationCap,
   ArrowLeft,
 } from "lucide-react";
@@ -49,13 +41,11 @@ import {
 
 // --- CONFIGURATION & UTILITIES ---
 const getUserDocPath = (userId) => {
-  // Use a default app-id if global is undefined to prevent crash
-  const appId = typeof __app_id !== "undefined" ? __app_id : "bsss-dating";
+  const appId = typeof __app_id !== "undefined" ? __app_id : "default-app-id";
   return `artifacts/${appId}/users/${userId}/profile/data`;
 };
 
 // --- HELPER COMPONENTS ---
-
 const ToggleSwitch = ({ initialChecked = false, onChange }) => {
   const [isChecked, setIsChecked] = useState(initialChecked);
   useEffect(() => setIsChecked(initialChecked), [initialChecked]);
@@ -112,9 +102,7 @@ const ListItem = ({
   onClick,
 }) => {
   const IconComponent = icon;
-  // Safety check: ensure value is a string or join it if array
   const displayValue = Array.isArray(value) ? value.join(", ") : value;
-  
   return (
     <button
       onClick={onClick}
@@ -129,7 +117,7 @@ const ListItem = ({
           <p className="text-base text-white">{title}</p>
         </div>
         <div className="flex items-center ml-2">
-          <p className={`text-sm ${valueColor} mr-2 capitalize truncate max-w-[150px]`}>
+          <p className={`text-sm ${valueColor} mr-2 truncate max-w-[150px]`}>
             {displayValue || "Add"}
           </p>
           {hasChevron && (
@@ -172,25 +160,24 @@ const SelectModal = ({
   isOpen,
   onClose,
   title,
-  options = [], // Default to empty array to prevent crash
+  options,
   selectedValue,
   onSelect,
   allowMultiple = false,
 }) => {
   const [selected, setSelected] = useState(
-    allowMultiple ? selectedValue || [] : selectedValue
+    allowMultiple ? (Array.isArray(selectedValue) ? selectedValue : []) : selectedValue
   );
   
   useEffect(() => {
-    setSelected(allowMultiple ? selectedValue || [] : selectedValue);
-  }, [selectedValue, allowMultiple, isOpen]);
+    setSelected(allowMultiple ? (Array.isArray(selectedValue) ? selectedValue : []) : selectedValue);
+  }, [selectedValue, allowMultiple]);
 
   const handleSelect = (value) => {
     if (allowMultiple) {
-      const currentSelected = Array.isArray(selected) ? selected : [];
-      const newSelected = currentSelected.includes(value)
-        ? currentSelected.filter((v) => v !== value)
-        : [...currentSelected, value];
+      const newSelected = selected.includes(value)
+        ? selected.filter((v) => v !== value)
+        : [...selected, value];
       setSelected(newSelected);
     } else {
       setSelected(value);
@@ -198,7 +185,6 @@ const SelectModal = ({
       onClose();
     }
   };
-  
   const handleDone = () => {
     if (allowMultiple) onSelect(selected);
     onClose();
@@ -207,7 +193,7 @@ const SelectModal = ({
   return (
     <Modal
       isOpen={isOpen}
-      onClose={allowMultiple ? null : onClose}
+      onClose={allowMultiple ? handleDone : onClose}
       title={title}
     >
       <div className="space-y-2">
@@ -216,17 +202,14 @@ const SelectModal = ({
             key={option.value}
             onClick={() => handleSelect(option.value)}
             className={`w-full text-left px-4 py-3 rounded-xl border transition-all flex items-center justify-between shadow-sm ${
-                (allowMultiple 
-                    ? Array.isArray(selected) && selected.includes(option.value) 
-                    : selected === option.value
-                )
+                (allowMultiple ? selected?.includes(option.value) : selected === option.value)
                   ? "bg-sky-500/10 border-sky-500 text-sky-400"
                   : "bg-zinc-800 border-white/5 text-zinc-300 hover:border-zinc-600"
               }`}
           >
             <span className="text-white text-base">{option.label}</span>
             {(allowMultiple
-              ? Array.isArray(selected) && selected.includes(option.value)
+              ? selected?.includes(option.value)
               : selected === option.value) && (
               <Check className="w-5 h-5 text-sky-400" />
             )}
@@ -257,7 +240,7 @@ const TextInputModal = ({
   const [text, setText] = useState(value || "");
   useEffect(() => {
     setText(value || "");
-  }, [value, isOpen]);
+  }, [value]);
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title}>
       <textarea
@@ -290,8 +273,7 @@ const InterestsModal = ({ isOpen, onClose, selectedInterests, onSave }) => {
   const [selected, setSelected] = useState(selectedInterests || []);
   useEffect(() => {
     setSelected(selectedInterests || []);
-  }, [selectedInterests, isOpen]);
-  
+  }, [selectedInterests]);
   const interestCategories = {
     "Going Out": [
       "🍷 Wine Tasting",
@@ -545,8 +527,47 @@ const PreviewProfile = ({ profileData }) => {
               <p className="text-zinc-200 leading-relaxed text-lg font-medium italic border-l-2 border-sky-500 pl-4">"{profileData.aboutMe}"</p>
             </div>
           )}
-          {/* Add other details to preview if needed */}
+          {profileData.prompts?.length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-xs font-black text-zinc-500 uppercase tracking-widest">
+                My Prompts
+              </h3>
+              {profileData.prompts.map((prompt, idx) => (
+                <div
+                  key={idx}
+                  className="bg-zinc-800/50 rounded-2xl p-5 border border-white/5 shadow-sm"
+                >
+                  <p className="text-xs font-black text-sky-400 mb-2 uppercase tracking-tighter">
+                    {prompt.question}
+                  </p>
+                  <p className="text-white font-bold text-lg">{prompt.answer}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          {profileData.interests?.length > 0 && (
+            <div>
+              <h3 className="text-xs font-black text-zinc-500 uppercase tracking-widest mb-4">
+                Interests
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {profileData.interests.map((interest, idx) => (
+                  <span
+                    key={idx}
+                    className="bg-sky-500/10 text-sky-400 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-tighter border border-sky-500/20"
+                  >
+                    {interest}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
+      </div>
+      <div className="px-4 py-8 text-center">
+        <p className="text-zinc-600 text-xs font-bold uppercase tracking-[0.2em]">
+          This is how your profile looks to others
+        </p>
       </div>
     </div>
   );
@@ -573,10 +594,14 @@ export default function EditProfile({
   const [aboutMe, setAboutMe] = useState(profile.aboutMe || "");
   const [prompts, setPrompts] = useState(profile.prompts || []);
   const [interests, setInterests] = useState(profile.interests || []);
-  
-  const [lookingFor, setLookingFor] = useState(profile.lookingFor || "female");
+  const [lookingFor, setLookingFor] = useState(
+    profile.lookingFor || "female"
+  );
   const [pronouns, setPronouns] = useState(profile.pronouns || "");
   const [height, setHeight] = useState(profile.height || "");
+  const [relationshipType, setRelationshipType] = useState(
+    profile.relationshipType || []
+  );
   const [languages, setLanguages] = useState(profile.languages || []);
   const [zodiac, setZodiac] = useState(profile.zodiac || "");
   const [education, setEducation] = useState(profile.education || "");
@@ -606,29 +631,37 @@ export default function EditProfile({
   );
   const [isLoading, setIsLoading] = useState(false);
   const [activeModal, setActiveModal] = useState(null);
-  const [gender, setGender] = useState(profile.gender || "male");
-  const [relationshipType, setRelationshipType] = useState(
-    profile.relationshipType || []
-  );
+  const [gender, setGender] = useState(profile.gender || "");
 
-  // --- OPTIONS ---
+  // --- Options Data ---
+  
+  // UPDATED: Now only Male and Female
   const lookingForOptions = [
     { value: "male", label: "Male" },
-    { value: "female", label: "Female" }
+    { value: "female", label: "Female" },
   ];
-
+  
+  const pronounOptions = [
+    { value: "She/Her", label: "She/Her" },
+    { value: "He/Him", label: "He/Him" },
+    { value: "They/Them", label: "They/Them" },
+    { value: "Ze/Zir", label: "Ze/Zir" },
+    { value: "Prefer not to say", label: "Prefer not to say" },
+  ];
   const genderOptions = [
     { value: "male", label: "Male" },
     { value: "female", label: "Female" },
   ];
 
-  const pronounOptions = [
-    { value: "She/Her", label: "She/Her" },
-    { value: "He/Him", label: "He/Him" },
-    { value: "They/Them", label: "They/Them" },
-    { value: "Prefer not to say", label: "Prefer not to say" },
-  ];
-  
+  const heightOptions = Array.from({ length: 60 }, (_, i) => {
+    const inches = i + 48;
+    const feet = Math.floor(inches / 12);
+    const remainingInches = inches % 12;
+    return {
+      value: `${feet}'${remainingInches}"`,
+      label: `${feet}'${remainingInches}"`,
+    };
+  });
   const relationshipTypeOptions = [
     { value: "Monogamy", label: "Monogamy" },
     { value: "Ethically non-monogamous", label: "Ethically non-monogamous" },
@@ -638,13 +671,131 @@ export default function EditProfile({
       label: "Figuring out my dating goals",
     },
   ];
+  const languageOptions = [
+    { value: "English", label: "English" },
+    { value: "Spanish", label: "Spanish" },
+    { value: "French", label: "French" },
+    { value: "German", label: "German" },
+    { value: "Hindi", label: "Hindi" },
+    { value: "Mandarin", label: "Mandarin" },
+    { value: "Japanese", label: "Japanese" },
+    { value: "Korean", label: "Korean" },
+  ];
+  const zodiacOptions = [
+    { value: "Aries", label: "Aries ♈" },
+    { value: "Taurus", label: "Taurus ♉" },
+    { value: "Gemini", label: "Gemini ♊" },
+    { value: "Cancer", label: "Cancer ♋" },
+    { value: "Leo", label: "Leo ♌" },
+    { value: "Virgo", label: "Virgo ♍" },
+    { value: "Libra", label: "Libra ♎" },
+    { value: "Scorpio", label: "Scorpio ♏" },
+    { value: "Sagittarius", label: "Sagittarius ♐" },
+    { value: "Capricorn", label: "Capricorn ♑" },
+    { value: "Aquarius", label: "Aquarius ♒" },
+    { value: "Pisces", label: "Pisces ♓" },
+  ];
+  const educationOptions = [
+    { value: "High School", label: "High School" },
+    { value: "Trade School", label: "Trade School" },
+    { value: "In College", label: "In College" },
+    { value: "Undergraduate Degree", label: "Undergraduate Degree" },
+    { value: "In Grad School", label: "In Grad School" },
+    { value: "Graduate Degree", label: "Graduate Degree" },
+  ];
+  const familyPlansOptions = [
+    { value: "Want someday", label: "Want someday" },
+    { value: "Don't want", label: "Don't want" },
+    { value: "Have and want more", label: "Have and want more" },
+    { value: "Have and don't want more", label: "Have and don't want more" },
+    { value: "Not sure yet", label: "Not sure yet" },
+  ];
+  const personalityOptions = [
+    { value: "INTJ", label: "INTJ" },
+    { value: "INTP", label: "INTP" },
+    { value: "ENTJ", label: "ENTJ" },
+    { value: "ENTP", label: "ENTP" },
+    { value: "INFJ", label: "INFJ" },
+    { value: "INFP", label: "INFP" },
+    { value: "ENFJ", label: "ENFJ" },
+    { value: "ENFP", label: "ENFP" },
+    { value: "ISTJ", label: "ISTJ" },
+    { value: "ISFJ", label: "ISFJ" },
+    { value: "ESTJ", label: "ESTJ" },
+    { value: "ESFJ", label: "ESFJ" },
+    { value: "ISTP", label: "ISTP" },
+    { value: "ISFP", label: "ISFP" },
+    { value: "ESTP", label: "ESTP" },
+    { value: "ESFP", label: "ESFP" },
+  ];
+  const communicationOptions = [
+    { value: "Big time texter", label: "Big time texter" },
+    { value: "Phone caller", label: "Phone caller" },
+    { value: "Video chatter", label: "Video chatter" },
+    { value: "Bad texter", label: "Bad texter" },
+    { value: "Better in person", label: "Better in person" },
+  ];
+  const loveStyleOptions = [
+    { value: "Thoughtful gestures", label: "Thoughtful gestures" },
+    { value: "Presents", label: "Presents" },
+    { value: "Touch", label: "Touch" },
+    { value: "Compliments", label: "Compliments" },
+    { value: "Time together", label: "Time together" },
+  ];
+  const petsOptions = [
+    { value: "Dog", label: "🐕 Dog" },
+    { value: "Cat", label: "🐈 Cat" },
+    { value: "Both", label: "🐕🐈 Dog & Cat" },
+    { value: "Other", label: "🐠 Other Pets" },
+    { value: "None", label: "Pet-free" },
+    { value: "Want", label: "Want a pet" },
+    { value: "Allergic", label: "Allergic to pets" },
+  ];
+  const drinkingOptions = [
+    { value: "Not for me", label: "Not for me" },
+    { value: "Sober", label: "Sober" },
+    { value: "Sober curious", label: "Sober curious" },
+    { value: "On special occasions", label: "On special occasions" },
+    { value: "Socially on weekends", label: "Socially on weekends" },
+    { value: "Most nights", label: "Most nights" },
+  ];
+  const smokingOptions = [
+    { value: "Non-smoker", label: "Non-smoker" },
+    { value: "Smoker", label: "Smoker" },
+    { value: "Social smoker", label: "Social smoker" },
+    { value: "Trying to quit", label: "Trying to quit" },
+  ];
+  const workoutOptions = [
+    { value: "Every day", label: "Every day" },
+    { value: "Often", label: "Often" },
+    { value: "Sometimes", label: "Sometimes" },
+    { value: "Never", label: "Never" },
+  ];
+  const dietOptions = [
+    { value: "Vegan", label: "Vegan" },
+    { value: "Vegetarian", label: "Vegetarian" },
+    { value: "Pescatarian", label: "Pescatarian" },
+    { value: "Kosher", label: "Kosher" },
+    { value: "Halal", label: "Halal" },
+    { value: "Carnivore", label: "Carnivore" },
+    { value: "Omnivore", label: "Omnivore" },
+    { value: "Other", label: "Other" },
+  ];
+  const socialMediaOptions = [
+    { value: "Influencer status", label: "Influencer status" },
+    { value: "Socially active", label: "Socially active" },
+    { value: "Off the grid", label: "Off the grid" },
+    { value: "Passive scroller", label: "Passive scroller" },
+  ];
+  const sleepingOptions = [
+    { value: "Early bird", label: "Early bird" },
+    { value: "Night owl", label: "Night owl" },
+    { value: "In a spectrum", label: "In a spectrum" },
+  ];
 
-  const heightOptions = Array.from({ length: 60 }, (_, i) => {
-    const inches = i + 48;
-    const feet = Math.floor(inches / 12);
-    const remainingInches = inches % 12;
-    return { value: `${feet}'${remainingInches}"`, label: `${feet}'${remainingInches}"` };
-  });
+  const handleAddPrompt = (newPrompt) => {
+    if (prompts.length < 3) setPrompts([...prompts, newPrompt]);
+  };
 
   const uploadPhotoToFirebase = async (file) => {
     const uniqueFileName = `${userId}-${Date.now()}-${file.name}`;
@@ -701,8 +852,7 @@ export default function EditProfile({
 
   const handleSave = async () => {
     if (!db || !userId) return;
-    if(!gender) return alert("Please Select Gender");
-    
+    if(!gender) return alert("Please Select Gender")
     setIsLoading(true);
 
     const profileData = {
@@ -714,9 +864,9 @@ export default function EditProfile({
       anthem,
       photos,
       smartPhotos,
-      lookingFor, 
+      lookingFor, // Contains 'male' or 'female'
       pronouns,
-      gender,     
+      gender,
       height,
       relationshipType,
       languages,
@@ -741,19 +891,17 @@ export default function EditProfile({
     };
 
     try {
-      // 1. Save to Artifacts
       const profileDocRef = doc(db, getUserDocPath(userId));
       await setDoc(profileDocRef, profileData, { merge: true });
 
-      // 2. Save to Users Collection (For Discovery)
       const userDocRef = doc(db, "users", userId);
       await setDoc(
         userDocRef,
         {
           photos,
           aboutMe,
-          gender, // Ensure gender is searchable
-          lookingFor, // Ensure preferences are searchable
+          gender,
+          lookingFor, // UPDATED: Added here so Discover page can filter users
           jobTitle,
           company,
           school,
@@ -767,6 +915,7 @@ export default function EditProfile({
           smoking,
           zodiac,
           lastUpdated: new Date().toISOString(),
+          isProfileCompleted: true, // --- THIS IS THE CRITICAL FIX ---
         },
         { merge: true }
       );
@@ -783,15 +932,11 @@ export default function EditProfile({
     }
   };
 
-  const handleAddPrompt = (newPrompt) => {
-      setPrompts([...prompts, newPrompt]);
-  };
-
   const isReadyToSave = !isLoading;
 
   return (
     <div className="bg-black min-h-screen">
-      <div className="max-w-4xl mx-auto bg-black min-h-screen">
+      <div className="max-w-4xl mx-auto bg-black min-h-screen relative">
         <header className="border-b border-white/5 sticky top-16 lg:top-20 bg-black/80 backdrop-blur-xl z-20 transition-all duration-300 shadow-sm">
           <div className="flex justify-between items-center px-4 lg:px-8 py-4">
             <button
@@ -889,6 +1034,20 @@ export default function EditProfile({
                   </button>
                 ))}
               </div>
+              <div className="flex justify-between items-center mt-6 pt-4 border-t border-white/5">
+                <div>
+                  <h4 className="font-bold text-white text-sm">
+                    Smart Photos
+                  </h4>
+                  <p className="text-xs text-zinc-500 mt-0.5">
+                    Tinder tests your photos to show your best one first.
+                  </p>
+                </div>
+                <ToggleSwitch
+                  initialChecked={smartPhotos}
+                  onChange={setSmartPhotos}
+                />
+              </div>
             </div>
 
             <ProfileSection title="About Me" badge="Boosted">
@@ -947,34 +1106,6 @@ export default function EditProfile({
               </div>
             </ProfileSection>
 
-            <ProfileSection title="Basics">
-              <ListItem 
-                icon={User} 
-                title="Gender" 
-                value={gender || "Select"} 
-                onClick={() => setActiveModal('gender')} 
-              />
-              <ListItem
-                icon={Heart}
-                title="Looking for"
-                value={lookingFor}
-                valueColor="text-yellow-500"
-                onClick={() => setActiveModal("lookingFor")}
-              />
-              <ListItem
-                icon={User}
-                title="Pronouns"
-                value={pronouns}
-                onClick={() => setActiveModal("pronouns")}
-              />
-              <ListItem
-                icon={Ruler}
-                title="Height"
-                value={height}
-                onClick={() => setActiveModal("height")}
-              />
-            </ProfileSection>
-
             <ProfileSection title="Interests" badge="+8% Matches">
               <div className="px-4 py-4">
                 {interests.length > 0 ? (
@@ -1015,82 +1146,181 @@ export default function EditProfile({
             <ProfileSection title="Relationship Goals">
               <ListItem
                 icon={Heart}
+                title="Looking for"
+                value={lookingFor}
+                valueColor="text-yellow-500"
+                onClick={() => setActiveModal("lookingFor")}
+              />
+              <ListItem
+                icon={Heart}
                 title="Open to"
                 value={relationshipType}
                 onClick={() => setActiveModal("relationshipType")}
               />
             </ProfileSection>
 
-            {/* MODALS RENDER LOGIC */}
-            <TextInputModal
-              isOpen={activeModal === "aboutMe"}
-              onClose={() => setActiveModal(null)}
-              title="About Me"
-              value={aboutMe}
-              onSave={setAboutMe}
-              placeholder="I'm a..."
-              maxLength={200}
-            />
-            <SelectModal
-              isOpen={activeModal === "lookingFor"}
-              onClose={() => setActiveModal(null)}
-              title="Looking for"
-              options={lookingForOptions}
-              selectedValue={lookingFor}
-              onSelect={setLookingFor}
-            />
-            <SelectModal
-              isOpen={activeModal === "gender"}
-              onClose={() => setActiveModal(null)}
-              title="Gender"
-              options={genderOptions}
-              selectedValue={gender}
-              onSelect={setGender}
-            />
-            <SelectModal
-              isOpen={activeModal === "pronouns"}
-              onClose={() => setActiveModal(null)}
-              title="Pronouns"
-              options={pronounOptions}
-              selectedValue={pronouns}
-              onSelect={setPronouns}
-            />
-            <SelectModal
-              isOpen={activeModal === "height"}
-              onClose={() => setActiveModal(null)}
-              title="Height"
-              options={heightOptions}
-              selectedValue={height}
-              onSelect={setHeight}
-            />
-            <SelectModal
-              isOpen={activeModal === "relationshipType"}
-              onClose={() => setActiveModal(null)}
-              title="Relationship Type"
-              options={relationshipTypeOptions}
-              selectedValue={relationshipType}
-              onSelect={setRelationshipType}
-            />
-            
-            <InterestsModal
-              isOpen={activeModal === "interests"}
-              onClose={() => setActiveModal(null)}
-              selectedInterests={interests}
-              onSave={setInterests}
-            />
-            <PromptsModal
-              isOpen={activeModal === "prompts"}
-              onClose={() => setActiveModal(null)}
-              prompts={prompts}
-              onSave={handleAddPrompt}
-            />
-            <PhotoOptionsModal
-              isOpen={activeModal === "photoOptions"}
-              onClose={() => setActiveModal(null)}
-              onSelectCamera={handleCameraCapture}
-              onSelectGallery={handleGalleryUpload}
-            />
-            
+            <ProfileSection title="Basics">
+              <ListItem
+                icon={User}
+                title="Pronouns"
+                value={pronouns}
+                onClick={() => setActiveModal("pronouns")}
+              />
+              <ListItem 
+                icon={User} 
+                title="Gender" 
+                value={gender || "Select"} 
+                onClick={() => setActiveModal('gender')} 
+              />
+              <ListItem
+                icon={Ruler}
+                title="Height"
+                value={height}
+                onClick={() => setActiveModal("height")}
+              />
+              <ListItem
+                icon={BookOpen}
+                title="Languages I Know"
+                value={languages}
+                onClick={() => setActiveModal("languages")}
+              />
+              <ListItem
+                icon={Sprout}
+                title="Zodiac"
+                value={zodiac}
+                onClick={() => setActiveModal("zodiac")}
+              />
+              <ListItem
+                icon={GraduationCap}
+                title="Education"
+                value={education}
+                onClick={() => setActiveModal("education")}
+              />
+              <ListItem
+                icon={Users}
+                title="Family Plans"
+                value={familyPlans}
+                onClick={() => setActiveModal("familyPlans")}
+              />
+            </ProfileSection>
+
+            <ProfileSection title="Personality">
+              <ListItem
+                icon={User} 
+                title="Personality Type"
+                value={personalityType}
+                onClick={() => setActiveModal("personalityType")}
+              />
+              <ListItem
+                icon={MessageSquare}
+                title="Communication Style"
+                value={communicationStyle}
+                onClick={() => setActiveModal("communicationStyle")}
+              />
+              <ListItem
+                icon={Heart}
+                title="Love Style"
+                value={loveStyle}
+                onClick={() => setActiveModal("loveStyle")}
+              />
+            </ProfileSection>
+
+            <ProfileSection title="Lifestyle">
+              <ListItem
+                icon={Cat}
+                title="Pets"
+                value={pets}
+                onClick={() => setActiveModal("pets")}
+              />
+              <ListItem
+                icon={GlassWater}
+                title="Drinking"
+                value={drinking}
+                onClick={() => setActiveModal("drinking")}
+              />
+              <ListItem
+                icon={Cigarette}
+                title="Smoking"
+                value={smoking}
+                onClick={() => setActiveModal("smoking")}
+              />
+              <ListItem
+                icon={Dumbbell}
+                title="Workout"
+                value={workout}
+                onClick={() => setActiveModal("workout")}
+              />
+              <ListItem
+                icon={Utensils}
+                title="Dietary Preference"
+                value={diet}
+                onClick={() => setActiveModal("diet")}
+              />
+              <ListItem
+                icon={Moon}
+                title="Sleeping Habits"
+                value={sleeping}
+                onClick={() => setActiveModal("sleeping")}
+              />
+              <ListItem
+                icon={Music}
+                title="Social Media"
+                value={socialMedia}
+                onClick={() => setActiveModal("socialMedia")}
+              />
+            </ProfileSection>
+
+            <ProfileSection title="Work & Education">
+              <ListItem
+                icon={Briefcase}
+                title="Job Title"
+                value={jobTitle}
+                onClick={() => setActiveModal("jobTitle")}
+              />
+              <ListItem
+                icon={Building}
+                title="Company"
+                value={company}
+                onClick={() => setActiveModal("company")}
+              />
+              <ListItem
+                icon={School}
+                title="School"
+                value={school}
+                onClick={() => setActiveModal("school")}
+              />
+              <ListItem
+                icon={MapPin}
+                title="Living In"
+                value={city}
+                onClick={() => setActiveModal("city")}
+              />
+              <ListItem
+                icon={Mic}
+                title="Anthem"
+                value={anthem}
+                onClick={() => setActiveModal("anthem")}
+              />
+            </ProfileSection>
+
+            <ProfileSection title="Visibility">
+              <div className="px-4 py-4 space-y-4">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <EyeOff className="text-zinc-600" />
+                    <span className="text-white font-bold">Hide My Age</span>
+                  </div>
+                  <ToggleSwitch initialChecked={hideAge} onChange={setHideAge} />
+                </div>
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <EyeOff className="text-zinc-600" />
+                    <span className="text-white font-bold">Hide My Distance</span>
+                  </div>
+                  <ToggleSwitch initialChecked={hideDistance} onChange={setHideDistance} />
+                </div>
+              </div>
+            </ProfileSection>
           </main>
         ) : (
           <PreviewProfile
@@ -1104,10 +1334,293 @@ export default function EditProfile({
               jobTitle,
               city,
               age: profile.age,
-              name: profile.name
             }}
           />
         )}
+
+        {/* --- MODAL RENDERING LOGIC --- */}
+        {activeModal === "aboutMe" && (
+          <TextInputModal
+            isOpen={true}
+            onClose={() => setActiveModal(null)}
+            title="About Me"
+            value={aboutMe}
+            onSave={setAboutMe}
+            placeholder="Write something about yourself..."
+            maxLength={300}
+          />
+        )}
+        {activeModal === "jobTitle" && (
+            <TextInputModal
+              isOpen={true}
+              onClose={() => setActiveModal(null)}
+              title="Job Title"
+              value={jobTitle}
+              onSave={setJobTitle}
+              placeholder="What do you do?"
+              maxLength={50}
+            />
+        )}
+        {activeModal === "company" && (
+            <TextInputModal
+              isOpen={true}
+              onClose={() => setActiveModal(null)}
+              title="Company"
+              value={company}
+              onSave={setCompany}
+              placeholder="Where do you work?"
+              maxLength={50}
+            />
+        )}
+        {activeModal === "school" && (
+            <TextInputModal
+              isOpen={true}
+              onClose={() => setActiveModal(null)}
+              title="School"
+              value={school}
+              onSave={setSchool}
+              placeholder="Where did you study?"
+              maxLength={50}
+            />
+        )}
+        {activeModal === "city" && (
+            <TextInputModal
+              isOpen={true}
+              onClose={() => setActiveModal(null)}
+              title="City"
+              value={city}
+              onSave={setCity}
+              placeholder="Where do you live?"
+              maxLength={50}
+            />
+        )}
+        {activeModal === "anthem" && (
+            <TextInputModal
+              isOpen={true}
+              onClose={() => setActiveModal(null)}
+              title="Anthem"
+              value={anthem}
+              onSave={setAnthem}
+              placeholder="Pick an anthem..."
+              maxLength={50}
+            />
+        )}
+
+        {activeModal === "lookingFor" && (
+            <SelectModal
+              isOpen={true}
+              onClose={() => setActiveModal(null)}
+              title="Looking For"
+              options={lookingForOptions}
+              selectedValue={lookingFor}
+              onSelect={setLookingFor}
+            />
+        )}
+        {activeModal === "relationshipType" && (
+            <SelectModal
+              isOpen={true}
+              onClose={() => setActiveModal(null)}
+              title="Open To"
+              options={relationshipTypeOptions}
+              selectedValue={relationshipType}
+              onSelect={setRelationshipType}
+              allowMultiple={true}
+            />
+        )}
+        {activeModal === "pronouns" && (
+            <SelectModal
+              isOpen={true}
+              onClose={() => setActiveModal(null)}
+              title="Pronouns"
+              options={pronounOptions}
+              selectedValue={pronouns}
+              onSelect={setPronouns}
+            />
+        )}
+        {activeModal === "gender" && (
+            <SelectModal
+              isOpen={true}
+              onClose={() => setActiveModal(null)}
+              title="Gender"
+              options={genderOptions}
+              selectedValue={gender}
+              onSelect={setGender}
+            />
+        )}
+        {activeModal === "height" && (
+            <SelectModal
+              isOpen={true}
+              onClose={() => setActiveModal(null)}
+              title="Height"
+              options={heightOptions}
+              selectedValue={height}
+              onSelect={setHeight}
+            />
+        )}
+        {activeModal === "languages" && (
+            <SelectModal
+              isOpen={true}
+              onClose={() => setActiveModal(null)}
+              title="Languages"
+              options={languageOptions}
+              selectedValue={languages}
+              onSelect={setLanguages}
+              allowMultiple={true}
+            />
+        )}
+        {activeModal === "zodiac" && (
+            <SelectModal
+              isOpen={true}
+              onClose={() => setActiveModal(null)}
+              title="Zodiac"
+              options={zodiacOptions}
+              selectedValue={zodiac}
+              onSelect={setZodiac}
+            />
+        )}
+        {activeModal === "education" && (
+            <SelectModal
+              isOpen={true}
+              onClose={() => setActiveModal(null)}
+              title="Education"
+              options={educationOptions}
+              selectedValue={education}
+              onSelect={setEducation}
+            />
+        )}
+        {activeModal === "familyPlans" && (
+            <SelectModal
+              isOpen={true}
+              onClose={() => setActiveModal(null)}
+              title="Family Plans"
+              options={familyPlansOptions}
+              selectedValue={familyPlans}
+              onSelect={setFamilyPlans}
+            />
+        )}
+        {activeModal === "personalityType" && (
+            <SelectModal
+              isOpen={true}
+              onClose={() => setActiveModal(null)}
+              title="Personality"
+              options={personalityOptions}
+              selectedValue={personalityType}
+              onSelect={setPersonalityType}
+            />
+        )}
+        {activeModal === "communicationStyle" && (
+            <SelectModal
+              isOpen={true}
+              onClose={() => setActiveModal(null)}
+              title="Communication"
+              options={communicationOptions}
+              selectedValue={communicationStyle}
+              onSelect={setCommunicationStyle}
+            />
+        )}
+        {activeModal === "loveStyle" && (
+            <SelectModal
+              isOpen={true}
+              onClose={() => setActiveModal(null)}
+              title="Love Style"
+              options={loveStyleOptions}
+              selectedValue={loveStyle}
+              onSelect={setLoveStyle}
+            />
+        )}
+        {activeModal === "pets" && (
+            <SelectModal
+              isOpen={true}
+              onClose={() => setActiveModal(null)}
+              title="Pets"
+              options={petsOptions}
+              selectedValue={pets}
+              onSelect={setPets}
+            />
+        )}
+        {activeModal === "drinking" && (
+            <SelectModal
+              isOpen={true}
+              onClose={() => setActiveModal(null)}
+              title="Drinking"
+              options={drinkingOptions}
+              selectedValue={drinking}
+              onSelect={setDrinking}
+            />
+        )}
+        {activeModal === "smoking" && (
+            <SelectModal
+              isOpen={true}
+              onClose={() => setActiveModal(null)}
+              title="Smoking"
+              options={smokingOptions}
+              selectedValue={smoking}
+              onSelect={setSmoking}
+            />
+        )}
+        {activeModal === "workout" && (
+            <SelectModal
+              isOpen={true}
+              onClose={() => setActiveModal(null)}
+              title="Workout"
+              options={workoutOptions}
+              selectedValue={workout}
+              onSelect={setWorkout}
+            />
+        )}
+        {activeModal === "diet" && (
+            <SelectModal
+              isOpen={true}
+              onClose={() => setActiveModal(null)}
+              title="Diet"
+              options={dietOptions}
+              selectedValue={diet}
+              onSelect={setDiet}
+            />
+        )}
+        {activeModal === "socialMedia" && (
+            <SelectModal
+              isOpen={true}
+              onClose={() => setActiveModal(null)}
+              title="Social Media"
+              options={socialMediaOptions}
+              selectedValue={socialMedia}
+              onSelect={setSocialMedia}
+            />
+        )}
+        {activeModal === "sleeping" && (
+            <SelectModal
+              isOpen={true}
+              onClose={() => setActiveModal(null)}
+              title="Sleeping Habits"
+              options={sleepingOptions}
+              selectedValue={sleeping}
+              onSelect={setSleeping}
+            />
+        )}
+        
+        {/* Custom Modals */}
+        <InterestsModal
+          isOpen={activeModal === "interests"}
+          onClose={() => setActiveModal(null)}
+          selectedInterests={interests}
+          onSave={setInterests}
+        />
+        
+        <PromptsModal
+            isOpen={activeModal === "prompts"}
+            onClose={() => setActiveModal(null)}
+            prompts={prompts}
+            onSave={handleAddPrompt}
+        />
+
+        <PhotoOptionsModal
+          isOpen={activeModal === "photoOptions"}
+          onClose={() => setActiveModal(null)}
+          onSelectCamera={handleCameraCapture}
+          onSelectGallery={handleGalleryUpload}
+        />
+
       </div>
     </div>
   );

@@ -40,11 +40,11 @@ const AppRoutes = () => {
                         {/* Public Routes */}
                         <Route 
                             path="/" 
-                            element={!currentUser ? <AuthPage /> : <Navigate to="/profile" replace />} 
+                            element={!currentUser ? <AuthPage /> : <Navigate to="/discover" replace />} 
                         />
                         <Route 
                             path="/login" 
-                            element={!currentUser ? <AuthPage /> : <Navigate to="/profile" replace />} 
+                            element={!currentUser ? <AuthPage /> : <Navigate to="/discover" replace />} 
                         />
                         <Route 
                             path="/forgot-password" 
@@ -70,7 +70,7 @@ const AppRoutes = () => {
                         />
 
                         {/* Catch-all */}
-                        <Route path="*" element={<Navigate to={currentUser ? "/profile" : "/"} replace />} />
+                        <Route path="*" element={<Navigate to={currentUser ? "/discover" : "/"} replace />} />
                     </Routes>
                 </Suspense>
             </main>

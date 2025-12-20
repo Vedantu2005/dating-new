@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { Ruler, Dumbbell, Cigarette, Wine, Sparkles } from 'lucide-react';
+import { Ruler, Dumbbell, Cigarette, Wine, Sparkles, UserCog } from 'lucide-react'; 
 import { useNavigate } from 'react-router-dom';
 import {
     collection,
@@ -41,9 +41,6 @@ const Briefcase = ({ size = 24, className = '' }) => (
 const GraduationCap = ({ size = 24, className = '' }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M22 10v6M2 10l10-5 10 5-10 5z" /><path d="M6 12v5c3 3 9 3 12 0v-5" /></svg>
 );
-const Check = ({ size = 24, className = '' }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M20 6 9 17l-5-5" /></svg>
-);
 const ChevronDown = ({ size = 24, className = '' }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m6 9 6 6 6-6" /></svg>
 );
@@ -57,14 +54,53 @@ const ChevronRight = ({ size = 24, className = '' }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m9 18 6-6-6-6" /></svg>
 );
 
-const THEME_COLOR = '#38bdf8'; // Oxygen Blue
-const THEME_COLOR1 = '#0f172a'; // Deep Navy Black
+const THEME_COLOR = '#38bdf8'; 
 
-// --- CONFIGURATION ---
 const FREE_SWIPES_LIMIT = 5;
 const FREE_SUPERLIKE_LIMIT = 2;
 
-// --- MODAL COMPONENT ---
+// --- UPDATE PROFILE POPUP (Conditional) ---
+const UpdateProfilePopup = ({ isOpen, onClose }) => {
+    const navigate = useNavigate();
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm animate-[fadeIn_0.3s_ease-out]">
+            <div className="bg-zinc-900 rounded-2xl p-6 w-[90%] max-w-sm shadow-2xl border border-white/10 relative text-center">
+                <button 
+                    onClick={onClose} 
+                    className="absolute top-3 right-3 text-gray-400 hover:text-white transition-colors"
+                >
+                    <X size={20} />
+                </button>
+                
+                <div className="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-gradient-to-tr from-sky-400 to-indigo-600 mb-4 shadow-lg shadow-sky-500/20">
+                    <UserCog className="h-7 w-7 text-white" />
+                </div>
+                
+                <h3 className="text-xl font-bold text-white mb-2">Complete Your Profile</h3>
+                <p className="text-sm text-gray-300 mb-6 leading-relaxed">
+                    Users with updated photos and bios get <span className="text-sky-400 font-bold">3x more matches</span>! Take a moment to update yours now.
+                </p>
+                
+                <button 
+                    onClick={() => navigate('/profile')} 
+                    className="w-full py-3 bg-white text-black rounded-xl font-bold hover:bg-gray-200 transition-colors shadow-lg"
+                >
+                    Update Now
+                </button>
+                <button 
+                    onClick={onClose} 
+                    className="mt-3 text-xs text-gray-500 hover:text-gray-300 underline"
+                >
+                    Maybe later
+                </button>
+            </div>
+        </div>
+    );
+};
+
+// --- UPGRADE MODAL ---
 const UpgradeModal = ({ isOpen, onClose, title, message }) => {
     const navigate = useNavigate();
     if (!isOpen) return null;
@@ -226,44 +262,11 @@ const ActionButtons = ({ onRewind, onNope, onSuperLike, onLike, onChat }) => {
     return (
         <div className="w-full pt-6 pb-4 sm:pb-8 px-4 bg-black">
             <div className="flex items-center justify-center gap-4 md:gap-6">
-                <button
-                    onClick={onRewind}
-                    className="flex-shrink-0 aspect-square flex h-14 w-14 items-center justify-center rounded-full bg-yellow-500 shadow-lg text-white border-2 border-yellow-500 hover:shadow-xl transition-all transform hover:scale-110 active:scale-95"
-                >
-                    <Undo2 size={24} />
-                </button>
-
-                <button
-                    onClick={onNope}
-                    className="flex-shrink-0 aspect-square flex h-16 w-16 items-center justify-center rounded-full bg-red-600 shadow-lg text-white border-2 border-red-500 hover:shadow-xl transition-all transform hover:scale-110 active:scale-95"
-                >
-                    <X size={32} strokeWidth={2.5} />
-                </button>
-
-                {/* Super Like – Purple */}
-                <button
-                    onClick={onSuperLike}
-                    className="flex-shrink-0 aspect-square flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-purple-500 to-fuchsia-600 text-white shadow-lg hover:shadow-xl transition-all transform hover:scale-110 active:scale-95"
-                >
-                    <Star size={24} fill="white" />
-                </button>
-
-                <button
-                    onClick={onLike}
-                    className="flex-shrink-0 aspect-square flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-r from-sky-400 to-blue-600 text-white shadow-lg hover:shadow-xl transition-all transform hover:scale-110 active:scale-95"
-                    style={{ backgroundColor: THEME_COLOR }}
-                >
-                    <Heart size={32} fill="white" />
-                </button>
-
-                {/* Chat – Teal / Emerald */}
-                <button
-                    onClick={onChat}
-                    className="flex-shrink-0 aspect-square flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg hover:shadow-xl transition-all transform hover:scale-110 active:scale-95"
-                >
-                    <MessageCircle size={24} fill="white" />
-                </button>
-
+                <button onClick={onRewind} className="flex-shrink-0 aspect-square flex h-14 w-14 items-center justify-center rounded-full bg-yellow-500 shadow-lg text-white border-2 border-yellow-500 hover:shadow-xl transition-all transform hover:scale-110 active:scale-95"><Undo2 size={24} /></button>
+                <button onClick={onNope} className="flex-shrink-0 aspect-square flex h-16 w-16 items-center justify-center rounded-full bg-red-600 shadow-lg text-white border-2 border-red-500 hover:shadow-xl transition-all transform hover:scale-110 active:scale-95"><X size={32} strokeWidth={2.5} /></button>
+                <button onClick={onSuperLike} className="flex-shrink-0 aspect-square flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-purple-500 to-fuchsia-600 text-white shadow-lg hover:shadow-xl transition-all transform hover:scale-110 active:scale-95"><Star size={24} fill="white" /></button>
+                <button onClick={onLike} className="flex-shrink-0 aspect-square flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-r from-sky-400 to-blue-600 text-white shadow-lg hover:shadow-xl transition-all transform hover:scale-110 active:scale-95" style={{ backgroundColor: THEME_COLOR }}><Heart size={32} fill="white" /></button>
+                <button onClick={onChat} className="flex-shrink-0 aspect-square flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg hover:shadow-xl transition-all transform hover:scale-110 active:scale-95"><MessageCircle size={24} fill="white" /></button>
             </div>
         </div>
     );
@@ -278,6 +281,10 @@ const Discover = () => {
     const [currentUserData, setCurrentUserData] = useState(null);
     const [usageStats, setUsageStats] = useState({ swipes: 0, superlikes: 0 });
     const [modalData, setModalData] = useState({ isOpen: false, title: "", message: "" });
+    
+    // --- STATE FOR UPDATE POPUP ---
+    const [showUpdatePopup, setShowUpdatePopup] = useState(false);
+
     const topCardRef = useRef();
     const currentUserId = auth.currentUser?.uid;
 
@@ -289,6 +296,36 @@ const Discover = () => {
         });
         return () => unsub();
     }, [currentUserId]);
+
+    // --- TRIGGER UPDATE POPUP (Refined Logic) ---
+    useEffect(() => {
+        // 1. Wait until userData is loaded
+        if (!currentUserData) return;
+
+        // 2. Check Completeness
+        // Logic: 
+        // - If user has updated their profile at least once, `isProfileCompleted` will be true.
+        // - If user is an OLD account (and hasn't updated recently), they won't have the flag, 
+        //   BUT they will have PHOTOS.
+        // - So, only show popup if: NOT Completed AND NO Photos.
+        
+        const isProfileCompleted = currentUserData.isProfileCompleted === true;
+        const hasPhotos = currentUserData.photos && currentUserData.photos.length > 0;
+        
+        // Treat as "Incomplete" only if they have NO PHOTOS and haven't marked as complete.
+        // This effectively hides it for old users (who have photos) and updated new users.
+        const isProfileIncomplete = !isProfileCompleted && !hasPhotos;
+
+        if (isProfileIncomplete) {
+            const timer = setTimeout(() => {
+                setShowUpdatePopup(true);
+            }, 1500); 
+            return () => clearTimeout(timer);
+        } else {
+            // Ensure popup is closed if criteria met
+            setShowUpdatePopup(false);
+        }
+    }, [currentUserData]); 
 
     useEffect(() => {
         if (!currentUserId) return;
@@ -302,14 +339,10 @@ const Discover = () => {
         return () => unsubUsage();
     }, [currentUserId]);
 
-    // --- MAIN CHANGE: FILTERING LOGIC ---
+    // --- FILTERING LOGIC ---
     useEffect(() => {
         if (!currentUserId || !currentUserData) return;
-        
-        // 1. Get the preference (default to 'everyone' if not found)
         const pref = currentUserData.lookingFor?.toLowerCase();
-
-        // 2. Build basic query
         const q = query(collection(db, 'users'), orderBy("displayName", "asc"), limit(500));
         
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -335,18 +368,13 @@ const Discover = () => {
                         prompts: data.prompts || [], 
                         interests: data.interests || [], 
                         badges: ['Verified'],
-                        gender: data.gender // Added gender for filtering
+                        gender: data.gender 
                     };
                 })
                 .filter(profile => {
                     if (!profile) return false;
-                    
-                    // 3. Filter based on preference
-                    // If looking for 'male', show only males
                     if (pref === 'male' && profile.gender?.toLowerCase() !== 'male') return false;
-                    // If looking for 'female', show only females
                     if (pref === 'female' && profile.gender?.toLowerCase() !== 'female') return false;
-                    
                     return true;
                 });
             setProfiles(fetchedProfiles);
@@ -394,7 +422,6 @@ const Discover = () => {
         if (direction === 'right' || direction === 'up') {
             setDoc(doc(db, "users", currentUserId, "swipes", swipedUser.id), { liked: true, super: direction === 'up', timestamp: serverTimestamp() });
             
-            // Added 'usersIncluded' for Chat compatibility
             setDoc(doc(db, "matches", [currentUserId, swipedUser.id].sort().join("_")), { 
                 users: [currentUserId, swipedUser.id], 
                 usersIncluded: {
@@ -410,7 +437,6 @@ const Discover = () => {
     const handleRewind = () => { if (checkUsageInstant('rewind') && history.length > 0) { const last = history[history.length - 1]; setHistory(p => p.slice(0, -1)); setProfiles(p => [...p, last]); } };
     const triggerSwipe = (dir) => { if (checkUsageInstant(dir === 'left' ? 'nope' : dir === 'up' ? 'superlike' : 'like') && topCardRef.current) topCardRef.current.swipe(dir); };
     
-    // Updated onChat Logic
     const handleChatClick = () => {
         if (checkUsageInstant('message')) {
             const currentProfile = profiles.length > 0 ? profiles[profiles.length - 1] : null;
@@ -422,6 +448,9 @@ const Discover = () => {
 
     return (
         <div className="mx-auto max-w-sm w-full h-[calc(100dvh-9rem)] flex flex-col mt-0 lg:mt-8 relative bg-black">
+            {/* Render Update Profile Popup */}
+            <UpdateProfilePopup isOpen={showUpdatePopup} onClose={() => setShowUpdatePopup(false)} />
+
             <UpgradeModal isOpen={modalData.isOpen} onClose={() => setModalData({ ...modalData, isOpen: false })} title={modalData.title} message={modalData.message} />
             <div className="flex-1 relative min-h-0 bg-black">
                 <div className="absolute inset-0 p-4 sm:p-6 bg-black">
