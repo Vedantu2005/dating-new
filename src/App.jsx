@@ -12,6 +12,8 @@ const DiscoverPage = React.lazy(() => import('./pages/Discover'));
 const ConfessionsPage = React.lazy(() => import('./pages/Confession'));
 const ChatPage = React.lazy(() => import('./pages/Chat'));
 const ProfilePage = React.lazy(() => import('./pages/Profile'));
+// NEW: Import the Premium Page
+const PremiumPage = React.lazy(() => import('./pages/PremiumPage')); 
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }) => {
@@ -29,7 +31,6 @@ const AppRoutes = () => {
     usePresence(); // Keep presence tracking active
 
     return (
-        /* UPDATED: Changed bg-[#E6E6FA] to bg-black and text-[#3730A3] to text-white */
         <div className="min-h-screen bg-black text-white">
             {/* Show Navbar only if logged in */}
             {currentUser && <Navbar />} 
@@ -67,6 +68,12 @@ const AppRoutes = () => {
                         <Route 
                             path="/chat" 
                             element={<ProtectedRoute><ChatPage /></ProtectedRoute>} 
+                        />
+                        
+                        {/* NEW: Premium Route */}
+                        <Route 
+                            path="/premium" 
+                            element={<ProtectedRoute><PremiumPage /></ProtectedRoute>} 
                         />
 
                         {/* Catch-all */}

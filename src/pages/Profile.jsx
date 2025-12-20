@@ -31,6 +31,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 
 // Internal Imports
+// Note: Ensure these paths are correct for your project structure
 import app, { db as sharedDb, storage as sharedStorage } from '../firebaseConfig';
 import EditProfile from '../components/EditProfile.jsx';
 
@@ -87,8 +88,8 @@ const DoubleDateIcon = () => (
 const BrandLogo = ({ type, textColor = "text-white" }) => (
   <div className="flex items-baseline space-x-2">
     <span className={`text-3xl font-extrabold ${textColor}`}>BSSS</span>
-    <span className={`text-[8px] font-bold px-2 py-0.5 rounded-sm uppercase ${type === 'gold' ? 'bg-black text-yellow-500' :
-      type === 'platinum' ? 'bg-white text-black' :
+    <span className={`text-[8px] font-bold px-2 py-0.5 rounded-sm uppercase ${type === 'Gold' ? 'bg-black text-yellow-500' :
+      type === 'Platinum' ? 'bg-white text-black' :
         'bg-sky-500 text-white'
       }`}>
       {type}
@@ -96,6 +97,7 @@ const BrandLogo = ({ type, textColor = "text-white" }) => (
   </div>
 );
 
+// --- PROFILE HEADER WITH BADGE LOGIC ---
 const ProfileHeader = ({ userData, onNavigate, onSignOut, db }) => {
   const user = userData?.auth;
   const profile = userData?.profile || {};
@@ -126,6 +128,22 @@ const ProfileHeader = ({ userData, onNavigate, onSignOut, db }) => {
   const placeholder = `https://placehold.co/100x100/0c4a6e/e0f2fe?text=${displayName?.[0] || 'U'}`;
   const displayPhoto = preview || realPhoto || placeholder;
   const hasImage = !!(preview || realPhoto);
+
+  // LOGIC TO DETERMINE BADGE
+  const getBadge = () => {
+    const tier = profile.subscriptionTier; // "Weekly", "Gold", or "Platinum"
+    
+    if (tier === 'Weekly') {
+      return <CheckCircle2 size={20} className="text-white fill-sky-500 ml-1" />;
+    }
+    if (tier === 'Gold') {
+      return <CheckCircle2 size={20} className="text-black fill-yellow-400 ml-1" />;
+    }
+    if (tier === 'Platinum') {
+      return <CheckCircle2 size={20} className="text-white fill-zinc-500 ml-1" />;
+    }
+    return null; // Free tier
+  };
 
   const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -194,7 +212,7 @@ const ProfileHeader = ({ userData, onNavigate, onSignOut, db }) => {
       <div className="flex flex-col items-start z-10">
         <div className="flex items-center space-x-1">
           <h1 className="text-2xl font-bold truncate max-w-[140px] text-white">{displayName}{displayAge}</h1>
-          <CheckCircle2 size={20} className="text-sky-400 fill-white" />
+          {getBadge()}
         </div>
         <button
           onClick={() => onNavigate('edit')}
@@ -213,8 +231,6 @@ const ProfileHeader = ({ userData, onNavigate, onSignOut, db }) => {
           <LogOut size={24} />
         </button>
       </div>
-
-
     </div>
   );
 };
@@ -298,7 +314,6 @@ const FeatureRow = ({ title, textColor, currentType, freeFeatures }) => {
   const isFreeFeature = freeFeatures.includes(title);
   return (
     <div className="grid grid-cols-3 items-center mt-3 text-center border-b border-white/5 pb-2 last:border-0">
-      {/* whitespace-nowrap prevents the text from breaking into two lines */}
       <span className={`text-[11px] xs:text-sm font-medium text-left truncate pr-1 ${textColor}`}>
         {title}
       </span>
@@ -314,7 +329,6 @@ const FeatureRow = ({ title, textColor, currentType, freeFeatures }) => {
 
 const UpgradeCard = ({ data, freeFeatures, onUpgrade }) => {
   return (
-    // min-h-[400px] ensures all cards are the same height
     <div className="min-w-full px-4 box-border snap-center md:min-w-0 md:px-0 flex flex-col">
       <div className={`p-5 rounded-[24px] shadow-lg bg-gradient-to-br ${data.gradient} flex flex-col flex-1 min-h-[280px]`}>
         
@@ -337,7 +351,6 @@ const UpgradeCard = ({ data, freeFeatures, onUpgrade }) => {
             <span className="opacity-100">{data.type}</span>
           </div>
 
-          {/* This wrapper ensures even spacing */}
           <div className="flex flex-col justify-start">
             {data.features.map((feature, index) => (
               <FeatureRow 
@@ -351,7 +364,6 @@ const UpgradeCard = ({ data, freeFeatures, onUpgrade }) => {
           </div>
         </div>
 
-        {/* Optional: Add a small "Best Value" or "Safe Payment" tag at bottom to fill space */}
         <p className={`text-center text-[10px] mt-4 opacity-60 font-medium ${data.textColor}`}>
           Cancel anytime • Secure Payment
         </p>
@@ -363,34 +375,40 @@ const UpgradeCard = ({ data, freeFeatures, onUpgrade }) => {
 const UpgradeCarousel = ({ onUpgrade }) => {
   const [activeIndex, setActiveIndex] = useState(1);
   const scrollRef = useRef(null);
+  
+  // TIERS WITH PRICES
   const tiers = [
     {
       type: 'Weekly',
+      price: 29,
       gradient: 'from-sky-600 to-blue-900',
       textColor: 'text-white',
       btnColor: 'bg-white',
       btnTextColor: 'text-sky-900',
-      features: ['limited likes', 'limited chats', 'limited swipes']
+      features: ['Limited Likes', 'Limited Chats', 'Weekly Blue Tick']
     },
     {
-      type: 'gold',
+      type: 'Gold',
+      price: 89,
       gradient: 'from-yellow-300 via-amber-400 to-orange-400',
       textColor: 'text-black',
       btnColor: 'bg-black',
       btnTextColor: 'text-yellow-400',
-      features: ['Unlimited likes', 'Unlimited chats', 'Unlimited swipes']
+      features: ['Unlimited Likes', 'Unlimited Chats', 'Gold Tick']
     },
     {
-      type: 'platinum',
+      type: 'Platinum',
+      price: 199,
       gradient: 'from-zinc-700 via-zinc-800 to-black',
       textColor: 'text-white',
       btnColor: 'bg-white',
       btnTextColor: 'text-black',
-      features: ['Rewind swipe', 'Profile boost', 'See who likes you']
+      features: ['Rewind Swipe', 'Profile Boost', 'Grey Tick']
     },
   ];
 
-  const freeFeatures = tiers.find(t => t.type === 'Free')?.features || [];
+  const freeFeatures = []; 
+  
   const handleScroll = () => {
     if (scrollRef.current) {
       const scrollLeft = scrollRef.current.scrollLeft;
@@ -402,7 +420,7 @@ const UpgradeCarousel = ({ onUpgrade }) => {
   useEffect(() => {
     if (scrollRef.current) {
       const width = scrollRef.current.offsetWidth;
-      scrollRef.current.scrollTo({ left: width * 1, behavior: 'auto' });
+      scrollRef.current.scrollTo({ left: width * 0, behavior: 'auto' });
     }
   }, []);
 
@@ -538,38 +556,64 @@ export default function Profile() {
   const [userData, setUserData] = useState(null);
   const [currentView, setCurrentView] = useState('profile');
 
+  // --- UPDATED PAYMENT HANDLER (Reverted to Standard UI) ---
   const handleUpgrade = async (plan) => {
-    const prices = { 'gold': 199, 'platinum': 499 };
-    const amount = prices[plan.type];
-    if (!amount) return;
-    const functions = getFunctions(app);
+    // 1. Check if price exists
+    if (!plan.price) {
+      alert("Invalid plan price");
+      return;
+    }
+    
+    // 2. Load Razorpay Script
     const res = await loadRazorpayScript("https://checkout.razorpay.com/v1/checkout.js");
-    if (!res) { alert("Razorpay SDK failed to load."); return; }
+    if (!res) { 
+      alert("Razorpay SDK failed to load. Are you online?"); 
+      return; 
+    }
 
     try {
-      const createOrderFn = httpsCallable(functions, 'createOrder');
-      const response = await createOrderFn({ amount: amount * 100 });
+      // 3. Client-Side Order Creation
       const options = {
-        key: "rzp_test_RoMYE85wG1Vzew",
-        amount: response.data.amount,
-        currency: response.data.currency,
+        key: "rzp_test_RoMYE85wG1Vzew", // Replace with your Live Key when ready
+        amount: plan.price * 100, // Converts Rs to Paise
+        currency: "INR",
         name: "BSSS Dating",
         description: `Upgrade to ${plan.type}`,
-        order_id: response.data.orderId,
-        handler: async function (res) {
+        
+        // 4. NOTE: To remove Wallet/PayLater without changing the UI, 
+        // DO NOT add a 'config' block here.
+        // Instead, disable them in your Razorpay Dashboard Settings.
+
+        handler: async function (response) {
+          console.log("Payment Successful", response);
+          
           if (user?.uid && dbInstance) {
+            // Update Firestore
             await updateDoc(doc(dbInstance, "users", user.uid), {
               subscriptionTier: plan.type,
-              subscriptionDate: new Date().toISOString()
+              subscriptionDate: new Date().toISOString(),
+              paymentId: response.razorpay_payment_id
             });
             alert(`Success! You are now a ${plan.type} member.`);
           }
         },
-        prefill: { name: userData?.profile?.name || "", email: user?.email || "" },
-        theme: { color: "#38bdf8" }
+        prefill: { 
+          name: userData?.profile?.name || user?.displayName || "", 
+          email: user?.email || "" 
+        },
+        theme: { 
+          // Match the theme color to the plan type
+          color: plan.type === 'Gold' ? '#ffc107' : plan.type === 'Platinum' ? '#333' : '#38bdf8' 
+        }
       };
-      new window.Razorpay(options).open();
-    } catch (error) { alert(`Something went wrong: ${error.message}`); }
+      
+      const rzp1 = new window.Razorpay(options);
+      rzp1.open();
+
+    } catch (error) { 
+      console.error("Payment Error:", error);
+      alert(`Something went wrong: ${error.message}`); 
+    }
   };
 
   useEffect(() => {

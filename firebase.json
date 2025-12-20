@@ -7,8 +7,32 @@
   },
   "functions": [
     {
-      "source": "functions",
       "codebase": "default",
+      "disallowLegacyRuntimeConfig": true,
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "source": "functions"
+    },
+    {
+      "codebase": "dating",
+      "disallowLegacyRuntimeConfig": true,
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "source": "dating"
+    },
+    {
+      "source": "new",
+      "codebase": "functions",
       "disallowLegacyRuntimeConfig": true,
       "ignore": [
         "node_modules",
