@@ -29,6 +29,6 @@ googleProvider.addScope("email");
 googleProvider.addScope("profile");
 
 export const facebookProvider = new FacebookAuthProvider();
-facebookProvider.addScope("email");
+// facebookProvider.addScope("email");
 
 export default app;
