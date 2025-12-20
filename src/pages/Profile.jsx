@@ -339,7 +339,7 @@ const UpgradeCard = ({ data, freeFeatures, onUpgrade, isCurrent }) => {
             disabled={isCurrent}
             className={`px-6 py-2 font-bold rounded-full shadow-md text-sm transition-all ${
               isCurrent 
-                ? "bg-white text-black cursor-default opacity-100" 
+                ? (data.type === 'Gold' ? "bg-black text-yellow-400 cursor-default" : "bg-white text-black cursor-default")
                 : `${data.btnColor} ${data.btnTextColor} hover:opacity-90 cursor-pointer active:scale-95`
             }`}
           >
