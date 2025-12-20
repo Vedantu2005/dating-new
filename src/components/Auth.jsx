@@ -63,16 +63,19 @@ export default function AuthPage() {
                 const userCredential = await signInWithEmailAndPassword(auth, email, password);
                 await saveUserData(userCredential.user, userCredential.user.displayName, false);
                 setSuccess(true);
-                setTimeout(() => navigate("/profile"), 1500);
+                // Redirect to Discover
+                setTimeout(() => navigate("/discover"), 1500);
             } else {
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 await updateProfile(userCredential.user, { displayName: name.trim() });
                 await saveUserData(userCredential.user, name.trim(), true);
                 setSuccess(true);
-                setTimeout(() => navigate("/profile"), 1500);
+                // Redirect to Discover
+                setTimeout(() => navigate("/discover"), 1500);
             }
         } catch (err) {
-            setError("Authentication failed. Please try again.");
+            console.error("Auth Error:", err);
+            setError("Authentication failed. Please check your credentials.");
             setLoading(false);
         }
     };
@@ -85,9 +88,17 @@ export default function AuthPage() {
             const userCredential = await signInWithPopup(auth, selectedProvider);
             await saveUserData(userCredential.user, userCredential.user.displayName, true);
             setSuccess(true);
-            setTimeout(() => navigate("/profile"), 1500);
+            // Redirect to Discover
+            setTimeout(() => navigate("/discover"), 1500);
         } catch (err) {
-            setError(`${providerName} login failed.`);
+            console.error(`${providerName} Login Error:`, err);
+            if (err.code === 'auth/account-exists-with-different-credential') {
+                setError("An account already exists with the same email address but different sign-in credentials.");
+            } else if (err.code === 'auth/popup-closed-by-user') {
+                setError("Login cancelled.");
+            } else {
+                setError(`${providerName} login failed. Check console for details.`);
+            }
             setLoading(false);
         }
     };
