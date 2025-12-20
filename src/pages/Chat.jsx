@@ -23,7 +23,8 @@ import {
   doc,
   getDoc,
   setDoc,
-  updateDoc
+  updateDoc,
+  increment
 } from "firebase/firestore";
 import {
   ref as storageRef,
@@ -203,16 +204,51 @@ const IndividualChat = ({ chat, onBack, currentUserId }) => {
 
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messages]);
 
+  // UPDATE USAGE STATS
+  const updateUsage = async () => {
+      try {
+          const today = new Date().toISOString().split('T')[0];
+          const usageRef = doc(db, "users", currentUserId, "usage", "daily");
+          await setDoc(usageRef, { date: today }, { merge: true });
+          await updateDoc(usageRef, { messages: increment(1) });
+      } catch (e) { console.error("Usage update error:", e); }
+  };
+
+  // CHECK LIMITS
   const checkMessageLimit = async () => {
     try {
-        const userSnap = await getDoc(doc(db, "users", currentUserId));
-        const tier = userSnap.data()?.subscriptionTier || 'Free';
-        if (tier === 'Free') {
-            setModalData({ isOpen: true, title: "Chat Locked 🔒", message: "Connect with Gold or Platinum for unlimited messages!" });
+        const userRef = doc(db, "users", currentUserId);
+        const userSnap = await getDoc(userRef);
+        const userData = userSnap.data();
+        const tier = (userData?.subscriptionTier || 'Free').toLowerCase();
+
+        // Unlimited Tiers
+        if (tier === 'platinum' || tier === 'gold') return true;
+
+        // Free Tier: Locked
+        if (tier === 'free') {
+            setModalData({ isOpen: true, title: "Chat Locked 🔒", message: "Chat is a Premium feature. Upgrade to unlock!" });
             return false;
         }
+
+        // Weekly Tier: Limit 30
+        if (tier === 'weekly') {
+            const today = new Date().toISOString().split('T')[0];
+            const usageRef = doc(db, "users", currentUserId, "usage", "daily");
+            const usageSnap = await getDoc(usageRef);
+            
+            if (usageSnap.exists() && usageSnap.data().date === today) {
+                const msgs = usageSnap.data().messages || 0;
+                if (msgs >= 30) {
+                    setModalData({ isOpen: true, title: "Daily Limit Reached", message: "You've reached your 30 daily messages limit!" });
+                    return false;
+                }
+            }
+            return true;
+        }
+        
         return true;
-    } catch (e) { return true; }
+    } catch (e) { console.error(e); return true; }
   };
 
   const handleSend = async () => {
@@ -241,6 +277,9 @@ const IndividualChat = ({ chat, onBack, currentUserId }) => {
         }
       }, { merge: true });
 
+      // TRACK USAGE
+      updateUsage();
+
     } catch (e) { console.error(e); }
   };
 
@@ -268,6 +307,9 @@ const IndividualChat = ({ chat, onBack, currentUserId }) => {
             [chat.id]: true
            }
        }, { merge: true });
+
+       // TRACK USAGE
+       updateUsage();
 
        setUploading(false);
     });

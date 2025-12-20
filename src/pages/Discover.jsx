@@ -16,7 +16,6 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '../firebaseConfig';
 
-// --- CUSTOM SVG ICONS ---
 const X = ({ size = 24, strokeWidth = 2, className = '' }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M18 6 6 18M6 6l12 12" /></svg>
 );
@@ -56,10 +55,6 @@ const ChevronRight = ({ size = 24, className = '' }) => (
 
 const THEME_COLOR = '#38bdf8'; 
 
-const FREE_SWIPES_LIMIT = 5;
-const FREE_SUPERLIKE_LIMIT = 2;
-
-// --- UPDATE PROFILE POPUP (Conditional) ---
 const UpdateProfilePopup = ({ isOpen, onClose }) => {
     const navigate = useNavigate();
     if (!isOpen) return null;
@@ -100,7 +95,6 @@ const UpdateProfilePopup = ({ isOpen, onClose }) => {
     );
 };
 
-// --- UPGRADE MODAL ---
 const UpgradeModal = ({ isOpen, onClose, title, message }) => {
     const navigate = useNavigate();
     if (!isOpen) return null;
@@ -124,7 +118,6 @@ const UpgradeModal = ({ isOpen, onClose, title, message }) => {
     );
 };
 
-// --- Image Gallery ---
 const ImageGallery = ({ images, className = '', objectFit = 'object-cover' }) => {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const safeImages = (images && images.length > 0)
@@ -165,7 +158,6 @@ const ImageGallery = ({ images, className = '', objectFit = 'object-cover' }) =>
     );
 };
 
-// --- Full Profile View ---
 const FullProfileView = ({ profile, onCollapse }) => {
     const basicsData = [
         { key: 'height', icon: Ruler, label: 'Height' },
@@ -212,7 +204,6 @@ const FullProfileView = ({ profile, onCollapse }) => {
     );
 };
 
-// --- Swipe Card ---
 const SwipeCard = forwardRef(({ profile, onExpand, onSwipe, isTop }, ref) => {
     const [isDragging, setIsDragging] = useState(false);
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -257,7 +248,6 @@ const SwipeCard = forwardRef(({ profile, onExpand, onSwipe, isTop }, ref) => {
     );
 });
 
-// --- ActionButtons ---
 const ActionButtons = ({ onRewind, onNope, onSuperLike, onLike, onChat }) => {
     return (
         <div className="w-full pt-6 pb-4 sm:pb-8 px-4 bg-black">
@@ -279,10 +269,9 @@ const Discover = () => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [expandedProfile, setExpandedProfile] = useState(null);
     const [currentUserData, setCurrentUserData] = useState(null);
-    const [usageStats, setUsageStats] = useState({ swipes: 0, superlikes: 0 });
+    const [usageStats, setUsageStats] = useState({ swipes: 0, superlikes: 0, likes: 0, messages: 0 });
     const [modalData, setModalData] = useState({ isOpen: false, title: "", message: "" });
     
-    // --- STATE FOR UPDATE POPUP ---
     const [showUpdatePopup, setShowUpdatePopup] = useState(false);
 
     const topCardRef = useRef();
@@ -297,23 +286,12 @@ const Discover = () => {
         return () => unsub();
     }, [currentUserId]);
 
-    // --- TRIGGER UPDATE POPUP (Refined Logic) ---
     useEffect(() => {
-        // 1. Wait until userData is loaded
         if (!currentUserData) return;
 
-        // 2. Check Completeness
-        // Logic: 
-        // - If user has updated their profile at least once, `isProfileCompleted` will be true.
-        // - If user is an OLD account (and hasn't updated recently), they won't have the flag, 
-        //   BUT they will have PHOTOS.
-        // - So, only show popup if: NOT Completed AND NO Photos.
-        
         const isProfileCompleted = currentUserData.isProfileCompleted === true;
         const hasPhotos = currentUserData.photos && currentUserData.photos.length > 0;
         
-        // Treat as "Incomplete" only if they have NO PHOTOS and haven't marked as complete.
-        // This effectively hides it for old users (who have photos) and updated new users.
         const isProfileIncomplete = !isProfileCompleted && !hasPhotos;
 
         if (isProfileIncomplete) {
@@ -322,7 +300,6 @@ const Discover = () => {
             }, 1500); 
             return () => clearTimeout(timer);
         } else {
-            // Ensure popup is closed if criteria met
             setShowUpdatePopup(false);
         }
     }, [currentUserData]); 
@@ -333,13 +310,17 @@ const Discover = () => {
         const usageRef = doc(db, "users", currentUserId, "usage", "daily");
         const unsubUsage = onSnapshot(usageRef, (docSnap) => {
             if (docSnap.exists() && docSnap.data().date === today) {
-                setUsageStats({ swipes: docSnap.data().swipes || 0, superlikes: docSnap.data().superlikes || 0 });
-            } else { setUsageStats({ swipes: 0, superlikes: 0 }); }
+                setUsageStats({ 
+                    swipes: docSnap.data().swipes || 0, 
+                    superlikes: docSnap.data().superlikes || 0,
+                    likes: docSnap.data().likes || 0,
+                    messages: docSnap.data().messages || 0
+                });
+            } else { setUsageStats({ swipes: 0, superlikes: 0, likes: 0, messages: 0 }); }
         });
         return () => unsubUsage();
     }, [currentUserId]);
 
-    // --- FILTERING LOGIC ---
     useEffect(() => {
         if (!currentUserId || !currentUserData) return;
         const pref = currentUserData.lookingFor?.toLowerCase();
@@ -383,18 +364,62 @@ const Discover = () => {
     }, [currentUserId, currentUserData]);
 
     const checkUsageInstant = (actionType) => {
-        const subscriptionTier = currentUserData?.subscriptionTier || 'Free';
+        const subscriptionTier = (currentUserData?.subscriptionTier || 'Free').toLowerCase();
+        
         if (subscriptionTier === 'platinum') return true;
-        if (subscriptionTier === 'Free') {
-            if (actionType === 'rewind') { setModalData({ isOpen: true, title: "Rewind is Premium", message: "Upgrade to undo your last swipe." }); return false; }
-            if (actionType === 'message') { setModalData({ isOpen: true, title: "Chat Locked", message: "Upgrade to message instantly." }); return false; }
-            if ((actionType === 'like' || actionType === 'nope') && usageStats.swipes >= FREE_SWIPES_LIMIT) {
-                setModalData({ isOpen: true, title: "Daily Limit Reached", message: "Upgrade for unlimited swipes!" }); return false;
+
+        if (subscriptionTier === 'gold') {
+            if (actionType === 'rewind') {
+                 setModalData({ isOpen: true, title: "Rewind is Platinum", message: "Upgrade to Platinum to undo swipes." }); 
+                 return false; 
             }
-            if (actionType === 'superlike' && usageStats.superlikes >= FREE_SUPERLIKE_LIMIT) {
-                setModalData({ isOpen: true, title: "Out of Super Likes", message: "Upgrade for more!" }); return false;
+            return true;
+        }
+
+        if (subscriptionTier === 'weekly') {
+             if (actionType === 'rewind') {
+                 setModalData({ isOpen: true, title: "Rewind is Platinum", message: "Upgrade to Platinum to undo swipes." }); 
+                 return false; 
+             }
+             if ((actionType === 'like' || actionType === 'nope') && usageStats.swipes >= 30) {
+                 setModalData({ isOpen: true, title: "Daily Limit Reached", message: "You've reached your 30 daily swipes!" });
+                 return false;
+             }
+             if (actionType === 'superlike' && usageStats.superlikes >= 5) {
+                 setModalData({ isOpen: true, title: "Super Likes Limit", message: "You've used your 5 daily Super Likes!" });
+                 return false;
+             }
+             if (actionType === 'message' && usageStats.messages >= 30) {
+                 setModalData({ isOpen: true, title: "Message Limit", message: "You've reached your 30 daily messages!" });
+                 return false;
+             }
+             return true;
+        }
+
+        // Free Logic
+        if (actionType === 'rewind') { setModalData({ isOpen: true, title: "Rewind is Premium", message: "Upgrade to undo your last swipe." }); return false; }
+        
+        // Chat Disabled for Free Tier
+        if (actionType === 'message') { 
+            setModalData({ isOpen: true, title: "Chat Locked", message: "Chat is a Premium feature. Upgrade to unlock!" }); 
+            return false; 
+        }
+
+        if (actionType === 'superlike' && usageStats.superlikes >= 1) {
+             setModalData({ isOpen: true, title: "Out of Super Likes", message: "Upgrade for more!" }); return false;
+        }
+
+        if (actionType === 'like' || actionType === 'nope') {
+            if (usageStats.swipes >= 5) {
+                setModalData({ isOpen: true, title: "Daily Limit Reached", message: "Free limit: 5 swipes/day. Upgrade!" }); 
+                return false;
+            }
+            if (actionType === 'like' && usageStats.likes >= 3) {
+                 setModalData({ isOpen: true, title: "Like Limit Reached", message: "Free limit: 3 likes/day. Upgrade!" });
+                 return false;
             }
         }
+        
         return true;
     };
 
@@ -405,6 +430,7 @@ const Discover = () => {
             await setDoc(usageRef, { date: today }, { merge: true });
             const updates = { date: today };
             if (actionType === 'like' || actionType === 'nope') updates.swipes = increment(1);
+            if (actionType === 'like') updates.likes = increment(1);
             if (actionType === 'superlike') updates.superlikes = increment(1);
             await updateDoc(usageRef, updates);
         } catch (error) { console.error(error); }
@@ -414,8 +440,11 @@ const Discover = () => {
         if (!currentUserId || profiles.length === 0) return;
         let actionType = direction === 'left' ? 'nope' : direction === 'up' ? 'superlike' : 'like';
         if (!checkUsageInstant(actionType)) return;
-        if (actionType === 'like' || actionType === 'nope') setUsageStats(prev => ({ ...prev, swipes: prev.swipes + 1 }));
+        if (actionType === 'like' || actionType === 'nope') {
+             setUsageStats(prev => ({ ...prev, swipes: prev.swipes + 1, likes: actionType === 'like' ? prev.likes + 1 : prev.likes }));
+        }
         else setUsageStats(prev => ({ ...prev, superlikes: prev.superlikes + 1 }));
+        
         const swipedUser = profiles[profiles.length - 1];
         setTimeout(() => { setHistory((prev) => [...prev, swipedUser]); setProfiles((prev) => prev.slice(0, -1)); }, 200);
         updateUsageBackground(actionType);
@@ -448,7 +477,6 @@ const Discover = () => {
 
     return (
         <div className="mx-auto max-w-sm w-full h-[calc(100dvh-9rem)] flex flex-col mt-0 lg:mt-8 relative bg-black">
-            {/* Render Update Profile Popup */}
             <UpdateProfilePopup isOpen={showUpdatePopup} onClose={() => setShowUpdatePopup(false)} />
 
             <UpgradeModal isOpen={modalData.isOpen} onClose={() => setModalData({ ...modalData, isOpen: false })} title={modalData.title} message={modalData.message} />

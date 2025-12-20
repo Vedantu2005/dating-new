@@ -31,7 +31,6 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 
 // Internal Imports
-// Note: Ensure these paths are correct for your project structure
 import app, { db as sharedDb, storage as sharedStorage } from '../firebaseConfig';
 import EditProfile from '../components/EditProfile.jsx';
 
@@ -47,7 +46,6 @@ const FALLBACK_FIREBASE_CONFIG = {
 };
 
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
 const getFirebaseConfig = () => {
   try {
@@ -129,20 +127,20 @@ const ProfileHeader = ({ userData, onNavigate, onSignOut, db }) => {
   const displayPhoto = preview || realPhoto || placeholder;
   const hasImage = !!(preview || realPhoto);
 
-  // LOGIC TO DETERMINE BADGE
+  // LOGIC TO DETERMINE BADGE (Case Insensitive)
   const getBadge = () => {
-    const tier = profile.subscriptionTier; // "Weekly", "Gold", or "Platinum"
+    const tier = profile.subscriptionTier?.toLowerCase(); 
     
-    if (tier === 'Weekly') {
+    if (tier === 'weekly') {
       return <CheckCircle2 size={20} className="text-white fill-sky-500 ml-1" />;
     }
-    if (tier === 'Gold') {
+    if (tier === 'gold') {
       return <CheckCircle2 size={20} className="text-black fill-yellow-400 ml-1" />;
     }
-    if (tier === 'Platinum') {
+    if (tier === 'platinum') {
       return <CheckCircle2 size={20} className="text-white fill-zinc-500 ml-1" />;
     }
-    return null; // Free tier
+    return null; 
   };
 
   const handlePhotoUpload = async (e) => {
@@ -327,7 +325,8 @@ const FeatureRow = ({ title, textColor, currentType, freeFeatures }) => {
   );
 };
 
-const UpgradeCard = ({ data, freeFeatures, onUpgrade }) => {
+// --- UPGRADE CARD ---
+const UpgradeCard = ({ data, freeFeatures, onUpgrade, isCurrent }) => {
   return (
     <div className="min-w-full px-4 box-border snap-center md:min-w-0 md:px-0 flex flex-col">
       <div className={`p-5 rounded-[24px] shadow-lg bg-gradient-to-br ${data.gradient} flex flex-col flex-1 min-h-[280px]`}>
@@ -336,10 +335,15 @@ const UpgradeCard = ({ data, freeFeatures, onUpgrade }) => {
         <div className="flex items-center justify-between mb-6">
           <BrandLogo type={data.type} textColor={data.textColor} />
           <button
-            onClick={() => onUpgrade && onUpgrade(data)}
-            className={`px-6 py-2 cursor-pointer font-bold rounded-full shadow-md text-sm ${data.btnColor} ${data.btnTextColor} hover:opacity-90 transition-opacity active:scale-95`}
+            onClick={() => !isCurrent && onUpgrade && onUpgrade(data)}
+            disabled={isCurrent}
+            className={`px-6 py-2 font-bold rounded-full shadow-md text-sm transition-all ${
+              isCurrent 
+                ? "bg-white text-black cursor-default opacity-100" 
+                : `${data.btnColor} ${data.btnTextColor} hover:opacity-90 cursor-pointer active:scale-95`
+            }`}
           >
-            Upgrade
+            {isCurrent ? "Active" : "Upgrade"}
           </button>
         </div>
 
@@ -372,7 +376,8 @@ const UpgradeCard = ({ data, freeFeatures, onUpgrade }) => {
   );
 };
 
-const UpgradeCarousel = ({ onUpgrade }) => {
+// --- CAROUSEL (Case Insensitive Check) ---
+const UpgradeCarousel = ({ onUpgrade, currentTier }) => {
   const [activeIndex, setActiveIndex] = useState(1);
   const scrollRef = useRef(null);
   
@@ -434,7 +439,13 @@ const UpgradeCarousel = ({ onUpgrade }) => {
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {tiers.map((tier, index) => (
-          <UpgradeCard key={index} data={tier} freeFeatures={freeFeatures} onUpgrade={onUpgrade} />
+          <UpgradeCard 
+            key={index} 
+            data={tier} 
+            freeFeatures={freeFeatures} 
+            onUpgrade={onUpgrade} 
+            isCurrent={currentTier?.toLowerCase() === tier.type.toLowerCase()} // Case Insensitive Match
+          />
         ))}
       </div>
       <div className="flex justify-center w-full space-x-1.5 md:hidden">
@@ -535,12 +546,16 @@ const PremiumView = ({ onNavigate, onUpgrade }) => {
 
 const ProfileScreen = ({ onNavigate, userData, onSignOut, db, onUpgrade }) => {
   const [showAuthorPopup, setShowAuthorPopup] = useState(false);
+  // EXTRACT CURRENT TIER
+  const currentTier = userData?.profile?.subscriptionTier; 
+
   return (
     <div className="flex flex-col pb-4 bg-black">
       <ProfileHeader userData={userData} onNavigate={onNavigate} onSignOut={onSignOut} db={db} />
       <DoubleDateBanner user={userData?.profile || userData?.auth} />
       <ActionGrid onNavigate={onNavigate} />
-      <UpgradeCarousel onUpgrade={onUpgrade} />
+      {/* PASS CURRENT TIER */}
+      <UpgradeCarousel onUpgrade={onUpgrade} currentTier={currentTier} />
       <AuthorSection onOpenPopup={() => setShowAuthorPopup(true)} />
       {showAuthorPopup && <AuthorPopup onClose={() => setShowAuthorPopup(false)} />}
     </div>
@@ -558,13 +573,11 @@ export default function Profile() {
 
   // --- UPDATED PAYMENT HANDLER (Reverted to Standard UI) ---
   const handleUpgrade = async (plan) => {
-    // 1. Check if price exists
     if (!plan.price) {
       alert("Invalid plan price");
       return;
     }
     
-    // 2. Load Razorpay Script
     const res = await loadRazorpayScript("https://checkout.razorpay.com/v1/checkout.js");
     if (!res) { 
       alert("Razorpay SDK failed to load. Are you online?"); 
@@ -572,28 +585,29 @@ export default function Profile() {
     }
 
     try {
-      // 3. Client-Side Order Creation
       const options = {
-        key: "rzp_test_RoMYE85wG1Vzew", // Replace with your Live Key when ready
-        amount: plan.price * 100, // Converts Rs to Paise
+        key: "rzp_test_RoMYE85wG1Vzew", 
+        amount: plan.price * 100, 
         currency: "INR",
         name: "BSSS Dating",
         description: `Upgrade to ${plan.type}`,
-        
-        // 4. NOTE: To remove Wallet/PayLater without changing the UI, 
-        // DO NOT add a 'config' block here.
-        // Instead, disable them in your Razorpay Dashboard Settings.
-
         handler: async function (response) {
           console.log("Payment Successful", response);
           
           if (user?.uid && dbInstance) {
-            // Update Firestore
+            // Update Users collection
             await updateDoc(doc(dbInstance, "users", user.uid), {
               subscriptionTier: plan.type,
               subscriptionDate: new Date().toISOString(),
               paymentId: response.razorpay_payment_id
             });
+            
+            // Also update Artifacts collection to ensure Profile reads it immediately
+            const artifactRef = doc(dbInstance, getUserDocPath(user.uid));
+            await setDoc(artifactRef, { 
+                subscriptionTier: plan.type 
+            }, { merge: true });
+
             alert(`Success! You are now a ${plan.type} member.`);
           }
         },
@@ -602,7 +616,6 @@ export default function Profile() {
           email: user?.email || "" 
         },
         theme: { 
-          // Match the theme color to the plan type
           color: plan.type === 'Gold' ? '#ffc107' : plan.type === 'Platinum' ? '#333' : '#38bdf8' 
         }
       };
@@ -629,12 +642,49 @@ export default function Profile() {
     });
   }, []);
 
+  // --- LISTEN TO BOTH COLLECTIONS ---
   useEffect(() => {
     if (dbInstance && userId && user) {
-      return onSnapshot(doc(dbInstance, getUserDocPath(userId)), (docSnap) => {
-        const profileData = docSnap.exists() ? docSnap.data() : {};
-        setUserData({ auth: user, profile: { name: user.displayName, age: profileData.age || "", ...profileData } });
+      // Listener 1: Artifacts (Profile Data)
+      const unsubArtifacts = onSnapshot(doc(dbInstance, getUserDocPath(userId)), (docSnap) => {
+        const artifactData = docSnap.exists() ? docSnap.data() : {};
+        
+        setUserData(prev => {
+           const existingProfile = prev?.profile || {};
+           return {
+               auth: user,
+               profile: {
+                   ...existingProfile,
+                   ...artifactData,
+                   name: user.displayName,
+                   age: artifactData.age || ""
+               }
+           };
+        });
       });
+
+      // Listener 2: Users Collection (Subscription Tier)
+      const unsubUsers = onSnapshot(doc(dbInstance, "users", userId), (docSnap) => {
+        if (docSnap.exists()) {
+            const userDocData = docSnap.data();
+            
+            setUserData(prev => {
+                const existingProfile = prev?.profile || {};
+                return {
+                    auth: user,
+                    profile: {
+                        ...existingProfile,
+                        subscriptionTier: userDocData.subscriptionTier, 
+                    }
+                };
+            });
+        }
+      });
+
+      return () => {
+        unsubArtifacts();
+        unsubUsers();
+      };
     }
   }, [dbInstance, userId, user]);
 
