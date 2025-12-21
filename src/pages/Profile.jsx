@@ -20,7 +20,8 @@ import {
   Share2,
   MessageCircle,
   Instagram,
-  ArrowLeft
+  ArrowLeft,
+  Sparkles
 } from 'lucide-react';
 
 // Firebase Imports
@@ -94,6 +95,52 @@ const BrandLogo = ({ type, textColor = "text-white" }) => (
     </span>
   </div>
 );
+
+// --- NEW: PAYMENT SUCCESS MODAL ---
+const PaymentSuccessModal = ({ isOpen, onClose, planType }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md px-4 animate-[fadeIn_0.3s_ease-out]">
+        <div className="bg-zinc-900 border border-white/10 rounded-[2rem] p-8 w-full max-w-sm shadow-2xl text-center relative overflow-hidden">
+            
+            {/* Background Glow */}
+            <div className="absolute top-[-50%] left-[-50%] w-full h-full bg-sky-500/20 blur-[100px] rounded-full pointer-events-none"></div>
+
+            <div className="relative z-10 flex flex-col items-center">
+                <div className="w-20 h-20 bg-gradient-to-br from-green-400 to-emerald-600 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/20">
+                    <Check size={40} className="text-white" strokeWidth={3} />
+                </div>
+                
+                <h2 className="text-2xl font-black text-white mb-2 uppercase tracking-tight">
+                    Upgrade Successful!
+                </h2>
+                
+                <p className="text-gray-400 mb-6 text-sm font-medium">
+                    You are now a <span className={`font-bold ${planType === 'Gold' ? 'text-yellow-400' : 'text-sky-400'}`}>{planType} Member</span>. Enjoy your exclusive benefits!
+                </p>
+
+                <div className="bg-zinc-800/50 rounded-xl p-4 w-full mb-6 border border-white/5">
+                    <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-500">Status</span>
+                        <span className="text-green-400 font-bold flex items-center gap-1">
+                            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                            Active
+                        </span>
+                    </div>
+                </div>
+
+                <button 
+                    onClick={onClose} 
+                    className="w-full py-4 bg-white text-black rounded-xl font-black text-sm uppercase tracking-wider hover:scale-[1.02] active:scale-95 transition-all shadow-xl"
+                >
+                    Continue
+                </button>
+            </div>
+        </div>
+    </div>
+  );
+};
 
 // --- PROFILE HEADER WITH BADGE LOGIC ---
 const ProfileHeader = ({ userData, onNavigate, onSignOut, db }) => {
@@ -570,8 +617,12 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState(null);
   const [currentView, setCurrentView] = useState('profile');
+  
+  // --- NEW: SUCCESS POPUP STATE ---
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successPlan, setSuccessPlan] = useState("");
 
-  // --- UPDATED PAYMENT HANDLER (UPDATES FIRESTORE ON SUCCESS) ---
+  // --- UPDATED PAYMENT HANDLER (Reverted to Standard UI) ---
   const handleUpgrade = async (plan) => {
     if (!plan.price) {
       alert("Invalid plan price");
@@ -603,13 +654,14 @@ export default function Profile() {
             });
             
             // 2. Update Artifacts collection (Profile UI Listener)
-            // This ensures the "Active" button updates instantly without refresh
             const artifactRef = doc(dbInstance, getUserDocPath(user.uid));
             await setDoc(artifactRef, { 
                 subscriptionTier: plan.type 
             }, { merge: true });
 
-            alert(`Success! You are now a ${plan.type} member.`);
+            // 3. SHOW CUSTOM SUCCESS POPUP (Replaced alert)
+            setSuccessPlan(plan.type);
+            setShowSuccessModal(true);
           }
         },
         prefill: { 
@@ -705,7 +757,14 @@ export default function Profile() {
   };
 
   return (
-    <div className="flex justify-center min-h-screen p-4 bg-zinc-950 font-inter">
+    <div className="flex justify-center min-h-screen p-4 bg-zinc-950 font-inter relative">
+      {/* SUCCESS POPUP COMPONENT */}
+      <PaymentSuccessModal 
+        isOpen={showSuccessModal} 
+        onClose={() => setShowSuccessModal(false)} 
+        planType={successPlan}
+      />
+
       <div className="w-full max-w-sm bg-black rounded-2xl shadow-xl sm:max-w-[95%] border border-white/5 overflow-hidden">
         {renderView()}
       </div>
