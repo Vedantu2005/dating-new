@@ -325,7 +325,7 @@ const FeatureRow = ({ title, textColor, currentType, freeFeatures }) => {
   );
 };
 
-// --- UPGRADE CARD ---
+// --- UPGRADE CARD WITH CUSTOM ACTIVE BUTTON STYLES ---
 const UpgradeCard = ({ data, freeFeatures, onUpgrade, isCurrent }) => {
   return (
     <div className="min-w-full px-4 box-border snap-center md:min-w-0 md:px-0 flex flex-col">
@@ -571,7 +571,7 @@ export default function Profile() {
   const [userData, setUserData] = useState(null);
   const [currentView, setCurrentView] = useState('profile');
 
-  // --- UPDATED PAYMENT HANDLER (Reverted to Standard UI) ---
+  // --- UPDATED PAYMENT HANDLER (UPDATES FIRESTORE ON SUCCESS) ---
   const handleUpgrade = async (plan) => {
     if (!plan.price) {
       alert("Invalid plan price");
@@ -595,14 +595,15 @@ export default function Profile() {
           console.log("Payment Successful", response);
           
           if (user?.uid && dbInstance) {
-            // Update Users collection
+            // 1. Update Users collection (Main Record)
             await updateDoc(doc(dbInstance, "users", user.uid), {
               subscriptionTier: plan.type,
               subscriptionDate: new Date().toISOString(),
               paymentId: response.razorpay_payment_id
             });
             
-            // Also update Artifacts collection to ensure Profile reads it immediately
+            // 2. Update Artifacts collection (Profile UI Listener)
+            // This ensures the "Active" button updates instantly without refresh
             const artifactRef = doc(dbInstance, getUserDocPath(user.uid));
             await setDoc(artifactRef, { 
                 subscriptionTier: plan.type 

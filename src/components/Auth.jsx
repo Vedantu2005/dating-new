@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Heart, Sparkles, Mail, Lock, User, ArrowRight, Loader } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -6,6 +6,8 @@ import {
     signInWithEmailAndPassword,
     updateProfile,
     signInWithPopup,
+    signInWithRedirect,
+    getRedirectResult,
     getAuth,
 } from "firebase/auth";
 import { doc, setDoc, getFirestore } from "firebase/firestore";
@@ -54,6 +56,28 @@ export default function AuthPage() {
     const navigate = useNavigate();
     const isLoginView = view === 'login';
 
+    // --- NEW: Handle Redirect Result (Runs when user returns from Facebook/Google) ---
+    useEffect(() => {
+        const checkRedirect = async () => {
+            try {
+                const result = await getRedirectResult(auth);
+                if (result) {
+                    setLoading(true);
+                    // User successfully logged in via redirect
+                    await saveUserData(result.user, result.user.displayName, true);
+                    setSuccess(true);
+                    setTimeout(() => navigate("/discover"), 1500);
+                }
+            } catch (err) {
+                console.error("Redirect Login Error:", err);
+                setError(err.message || "Login failed during redirect.");
+                setLoading(false);
+            }
+        };
+        checkRedirect();
+    }, [navigate]);
+    // --------------------------------------------------------------------------------
+
     const handleAuth = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -63,14 +87,12 @@ export default function AuthPage() {
                 const userCredential = await signInWithEmailAndPassword(auth, email, password);
                 await saveUserData(userCredential.user, userCredential.user.displayName, false);
                 setSuccess(true);
-                // Redirect to Discover
                 setTimeout(() => navigate("/discover"), 1500);
             } else {
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 await updateProfile(userCredential.user, { displayName: name.trim() });
                 await saveUserData(userCredential.user, name.trim(), true);
                 setSuccess(true);
-                // Redirect to Discover
                 setTimeout(() => navigate("/discover"), 1500);
             }
         } catch (err) {
@@ -84,18 +106,28 @@ export default function AuthPage() {
         setLoading(true);
         setError('');
         const selectedProvider = providerName === 'Google' ? googleProvider : facebookProvider;
+        
         try {
+            // Try Popup First
             const userCredential = await signInWithPopup(auth, selectedProvider);
             await saveUserData(userCredential.user, userCredential.user.displayName, true);
             setSuccess(true);
-            // Redirect to Discover
             setTimeout(() => navigate("/discover"), 1500);
         } catch (err) {
             console.error(`${providerName} Login Error:`, err);
-            if (err.code === 'auth/account-exists-with-different-credential') {
-                setError("An account already exists with the same email address but different sign-in credentials.");
-            } else if (err.code === 'auth/popup-closed-by-user') {
-                setError("Login cancelled.");
+
+            // --- FIXED: Fallback to Redirect if Popup is Blocked ---
+            if (err.code === 'auth/popup-blocked' || err.code === 'auth/popup-closed-by-user') {
+                setError(`Popup blocked. Redirecting to ${providerName}...`);
+                try {
+                    await signInWithRedirect(auth, selectedProvider);
+                    // No need to setLoading(false) here, page will redirect
+                    return; 
+                } catch (redirectErr) {
+                    setError("Could not redirect. Please allow popups for this site.");
+                }
+            } else if (err.code === 'auth/account-exists-with-different-credential') {
+                setError("An account already exists with the same email but different sign-in method.");
             } else {
                 setError(`${providerName} login failed. Check console for details.`);
             }
