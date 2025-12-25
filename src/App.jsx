@@ -15,7 +15,6 @@ const ProfilePage = React.lazy(() => import('./pages/Profile'));
 const PremiumPage = React.lazy(() => import('./pages/PremiumPage')); 
 
 // Admin Pages
-const AdminLogin = React.lazy(() => import('./pages/AdminLogin')); // New Login Page
 const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
 
 // --- PROTECTED ROUTE FOR REGULAR USERS ---
@@ -23,16 +22,6 @@ const ProtectedRoute = ({ children }) => {
     const { currentUser, loading } = useAuth(); 
     if (loading) return <Loading />;
     if (!currentUser) return <Navigate to="/" replace />;
-    return children;
-};
-
-// --- NEW: PROTECTED ROUTE FOR ADMIN ---
-// Checks sessionStorage for the 'isAdminAuthenticated' flag
-const AdminProtectedRoute = ({ children }) => {
-    const isAuthenticated = sessionStorage.getItem('isAdminAuthenticated') === 'true';
-    if (!isAuthenticated) {
-        return <Navigate to="/admin-login" replace />;
-    }
     return children;
 };
 
@@ -60,15 +49,7 @@ const AppRoutes = () => {
                         <Route path="/premium" element={<ProtectedRoute><PremiumPage /></ProtectedRoute>} />
 
                         {/* --- ADMIN ROUTES --- */}
-                        <Route path="/admin-login" element={<AdminLogin />} />
-                        <Route 
-                            path="/admin" 
-                            element={
-                                <AdminProtectedRoute>
-                                    <AdminDashboard />
-                                </AdminProtectedRoute>
-                            } 
-                        />
+                        <Route path="/admin" element={<AdminDashboard />} />
 
                         {/* Catch-all */}
                         <Route path="*" element={<Navigate to={currentUser ? "/discover" : "/"} replace />} />

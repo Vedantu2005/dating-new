@@ -3,44 +3,65 @@ import {
     getFirestore, collection, query, where, onSnapshot, 
     doc, writeBatch, serverTimestamp 
 } from "firebase/firestore";
-import { LogOut, CheckCircle, XCircle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { 
+    LogOut, CheckCircle, XCircle, 
+    Lock, User, Eye, EyeOff, ShieldCheck 
+} from 'lucide-react';
 import app from '../firebaseConfig';
-import { ConfirmModal, AlertModal } from '../components/CustomModals'; // Ensure this path is correct
+import { useAuth } from '../context/AuthContext'; // Import useAuth
+import { ConfirmModal, AlertModal } from '../components/CustomModals'; 
 
 const AdminDashboard = () => {
+    // --- AUTHENTICATION STATE ---
+    const { currentUser } = useAuth(); // Get current user status
+    const [isAuthenticated, setIsAuthenticated] = useState(() => {
+        return sessionStorage.getItem('isAdminAuthenticated') === 'true';
+    });
+
+    // --- LOGIN FORM STATE ---
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [loginError, setLoginError] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+
+    // --- DASHBOARD DATA STATE ---
     const [requests, setRequests] = useState([]);
     const db = getFirestore(app);
-    const navigate = useNavigate();
 
     // --- MODAL STATE MANAGEMENT ---
     const [confirmData, setConfirmData] = useState({ 
-        isOpen: false, 
-        title: '', 
-        message: '', 
-        action: null, 
-        isDestructive: false,
-        confirmText: 'Confirm'
+        isOpen: false, title: '', message: '', action: null, isDestructive: false, confirmText: 'Confirm'
     });
-    
     const [alertData, setAlertData] = useState({ 
-        isOpen: false, 
-        title: '', 
-        message: '', 
-        type: 'success' 
+        isOpen: false, title: '', message: '', type: 'success' 
     });
 
-    // --- 1. FETCH REQUESTS ---
+    // --- EFFECT: FETCH REQUESTS (Only when authenticated) ---
     useEffect(() => {
+        if (!isAuthenticated) return;
+
         const q = query(collection(db, "payment_requests"), where("status", "==", "pending"));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setRequests(data);
         });
         return () => unsubscribe();
-    }, []);
+    }, [isAuthenticated, db]);
 
-    // --- 2. LOGOUT LOGIC (With Modal) ---
+    // --- LOGIN LOGIC ---
+    const handleLogin = (e) => {
+        e.preventDefault();
+        // Hardcoded Admin Credentials Check
+        if (email === 'honey@gmail.com' && password === 'Honey@123') {
+            sessionStorage.setItem('isAdminAuthenticated', 'true');
+            setIsAuthenticated(true);
+            setLoginError('');
+        } else {
+            setLoginError('Invalid Admin Credentials');
+        }
+    };
+
+    // --- LOGOUT LOGIC ---
     const handleLogoutClick = () => {
         setConfirmData({
             isOpen: true,
@@ -50,12 +71,14 @@ const AdminDashboard = () => {
             confirmText: "Logout",
             action: () => {
                 sessionStorage.removeItem('isAdminAuthenticated');
-                navigate('/admin-login');
+                setIsAuthenticated(false);
+                setEmail('');
+                setPassword('');
             }
         });
     };
 
-    // --- 3. APPROVE LOGIC (With Modal) ---
+    // --- APPROVE LOGIC ---
     const initiateApprove = (req) => {
         setConfirmData({
             isOpen: true,
@@ -93,26 +116,18 @@ const AdminDashboard = () => {
 
             await batch.commit();
 
-            // Show Success Modal
             setAlertData({
-                isOpen: true,
-                title: "Plan Activated",
-                message: `${req.userName} is now a ${req.planId} member.`,
-                type: "success"
+                isOpen: true, title: "Plan Activated", message: `${req.userName} is now a ${req.planId} member.`, type: "success"
             });
-
         } catch (error) {
             console.error("Error approving:", error);
             setAlertData({
-                isOpen: true,
-                title: "Error",
-                message: "Failed to update database. Check console.",
-                type: "error"
+                isOpen: true, title: "Error", message: "Failed to update database. Check console.", type: "error"
             });
         }
     };
 
-    // --- 4. REJECT LOGIC (With Modal) ---
+    // --- REJECT LOGIC ---
     const initiateReject = (req) => {
         setConfirmData({
             isOpen: true,
@@ -132,10 +147,7 @@ const AdminDashboard = () => {
             await batch.commit();
             
             setAlertData({
-                isOpen: true,
-                title: "Request Rejected",
-                message: "The payment request has been marked as rejected.",
-                type: "success" // Technically a success action, even if rejection
+                isOpen: true, title: "Request Rejected", message: "The payment request has been marked as rejected.", type: "success"
             });
         } catch (error) {
             console.error("Error rejecting:", error);
@@ -143,9 +155,89 @@ const AdminDashboard = () => {
         }
     };
 
+    // --- DYNAMIC HEIGHT CALCULATION ---
+    // If logged in as user: Mobile = 100vh - 9rem (Top+Bottom Nav), Desktop = 100vh - 5rem (Top Nav)
+    // If NOT logged in: 100vh
+    const containerHeightClass = currentUser 
+        ? "min-h-[calc(100vh-9rem)] md:min-h-[calc(100vh-5rem)]" 
+        : "min-h-screen";
+
+    // ================= VIEW: LOGIN SCREEN =================
+    if (!isAuthenticated) {
+        return (
+            <div className={`${containerHeightClass} bg-black flex items-center justify-center p-4 font-inter`}>
+                <div className="w-full max-w-md bg-zinc-900 border border-white/10 p-8 rounded-3xl shadow-2xl relative overflow-hidden">
+                    {/* Decorative Background Blur */}
+                    <div className="absolute top-[-50px] right-[-50px] w-32 h-32 bg-sky-600/20 rounded-full blur-3xl pointer-events-none"></div>
+                    <div className="absolute bottom-[-50px] left-[-50px] w-32 h-32 bg-purple-600/20 rounded-full blur-3xl pointer-events-none"></div>
+
+                    <div className="text-center mb-8 relative z-10">
+                        <div className="w-16 h-16 bg-zinc-800 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/5 shadow-inner">
+                            <ShieldCheck size={32} className="text-sky-500" />
+                        </div>
+                        <h1 className="text-2xl font-black text-white uppercase tracking-tight">Admin Portal</h1>
+                        <p className="text-zinc-500 text-sm mt-1">Restricted Access Only</p>
+                    </div>
+
+                    <form onSubmit={handleLogin} className="space-y-4 relative z-10">
+                        {loginError && (
+                            <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs p-3 rounded-xl text-center font-bold">
+                                {loginError}
+                            </div>
+                        )}
+
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-zinc-500 uppercase ml-1 tracking-wider">Email ID</label>
+                            <div className="relative">
+                                <User size={18} className="absolute left-3 top-3.5 text-zinc-500" />
+                                <input 
+                                    type="email" 
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className="w-full bg-black border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all placeholder-zinc-700"
+                                    placeholder="admin@bsss.com"
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-zinc-500 uppercase ml-1 tracking-wider">Password</label>
+                            <div className="relative">
+                                <Lock size={18} className="absolute left-3 top-3.5 text-zinc-500" />
+                                <input 
+                                    type={showPassword ? "text" : "password"} 
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="w-full bg-black border border-white/10 rounded-xl py-3 pl-10 pr-10 text-white text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all placeholder-zinc-700"
+                                    placeholder="••••••••"
+                                    required
+                                />
+                                <button 
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-3.5 text-zinc-500 hover:text-white transition-colors"
+                                >
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                            </div>
+                        </div>
+
+                        <button 
+                            type="submit"
+                            className="w-full py-3.5 mt-2 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold rounded-xl transition-all shadow-lg active:scale-95"
+                        >
+                            Access Dashboard
+                        </button>
+                    </form>
+                </div>
+            </div>
+        );
+    }
+
+    // ================= VIEW: DASHBOARD =================
     return (
-        <div className="min-h-screen bg-black text-white p-6 font-inter">
-            
+        <div className={`${containerHeightClass} bg-black text-white p-6 font-inter`}>
             {/* --- CUSTOM POPUPS --- */}
             <ConfirmModal 
                 isOpen={confirmData.isOpen}
