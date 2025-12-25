@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import Loading from './components/Loading'; 
@@ -27,13 +27,19 @@ const ProtectedRoute = ({ children }) => {
 
 const AppRoutes = () => {
     const { currentUser } = useAuth();
+    const location = useLocation(); // Get current route
     usePresence();
+
+    // Hide Navbar on Admin route
+    const isAdminRoute = location.pathname === '/admin';
+    const showNavbar = currentUser && !isAdminRoute;
 
     return (
         <div className="min-h-screen bg-black text-white">
-            {currentUser && <Navbar />} 
+            {showNavbar && <Navbar />} 
             
-            <main className={currentUser ? "pt-16 pb-20 md:pb-0 md:pt-20 transition-all duration-300 min-h-[calc(100vh-140px)]" : ""}> 
+            {/* Remove padding if Navbar is hidden */}
+            <main className={showNavbar ? "pt-16 pb-20 md:pb-0 md:pt-20 transition-all duration-300 min-h-[calc(100vh-140px)]" : ""}> 
                 <Suspense fallback={<Loading />}>
                     <Routes>
                         {/* Public Routes */}

@@ -8,12 +8,10 @@ import {
     Lock, User, Eye, EyeOff, ShieldCheck 
 } from 'lucide-react';
 import app from '../firebaseConfig';
-import { useAuth } from '../context/AuthContext'; // Import useAuth
 import { ConfirmModal, AlertModal } from '../components/CustomModals'; 
 
 const AdminDashboard = () => {
     // --- AUTHENTICATION STATE ---
-    const { currentUser } = useAuth(); // Get current user status
     const [isAuthenticated, setIsAuthenticated] = useState(() => {
         return sessionStorage.getItem('isAdminAuthenticated') === 'true';
     });
@@ -155,17 +153,10 @@ const AdminDashboard = () => {
         }
     };
 
-    // --- DYNAMIC HEIGHT CALCULATION ---
-    // If logged in as user: Mobile = 100vh - 9rem (Top+Bottom Nav), Desktop = 100vh - 5rem (Top Nav)
-    // If NOT logged in: 100vh
-    const containerHeightClass = currentUser 
-        ? "min-h-[calc(100vh-9rem)] md:min-h-[calc(100vh-5rem)]" 
-        : "min-h-screen";
-
     // ================= VIEW: LOGIN SCREEN =================
     if (!isAuthenticated) {
         return (
-            <div className={`${containerHeightClass} bg-black flex items-center justify-center p-4 font-inter`}>
+            <div className="min-h-screen bg-black flex items-center justify-center p-4 font-inter">
                 <div className="w-full max-w-md bg-zinc-900 border border-white/10 p-8 rounded-3xl shadow-2xl relative overflow-hidden">
                     {/* Decorative Background Blur */}
                     <div className="absolute top-[-50px] right-[-50px] w-32 h-32 bg-sky-600/20 rounded-full blur-3xl pointer-events-none"></div>
@@ -237,7 +228,7 @@ const AdminDashboard = () => {
 
     // ================= VIEW: DASHBOARD =================
     return (
-        <div className={`${containerHeightClass} bg-black text-white p-6 font-inter`}>
+        <div className="min-h-screen bg-black text-white p-6 font-inter">
             {/* --- CUSTOM POPUPS --- */}
             <ConfirmModal 
                 isOpen={confirmData.isOpen}
