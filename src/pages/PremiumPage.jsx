@@ -140,8 +140,8 @@ const PremiumPage = () => {
             <input type="email" value={userEmail} onChange={(e) => setUserEmail(e.target.value)} className="w-full mt-1 bg-black border border-white/10 rounded-xl p-3 text-white text-sm focus:border-sky-500 outline-none placeholder-zinc-700 transition-colors" required />
           </div>
           <div>
-            <label className="text-[10px] font-bold text-gray-500 uppercase ml-1 tracking-wider">Transaction / UTR ID</label>
-            <input type="text" value={transactionId} onChange={(e) => setTransactionId(e.target.value)} className="w-full mt-1 bg-black border border-white/10 rounded-xl p-3 text-white text-sm focus:border-sky-500 outline-none placeholder-zinc-700 transition-colors" placeholder="Enter 12-digit UPI Ref ID" required />
+            <label className="text-[10px] font-bold text-gray-500 uppercase ml-1 tracking-wider">Enter Your UPI ID</label>
+            <input type="text" value={transactionId} onChange={(e) => setTransactionId(e.target.value)} className="w-full mt-1 bg-black border border-white/10 rounded-xl p-3 text-white text-sm focus:border-sky-500 outline-none placeholder-zinc-700 transition-colors" placeholder="Enter UPI ID here" required />
           </div>
           <button disabled={loading} className="w-full py-3.5 mt-4 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white font-bold rounded-xl transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
             {loading ? "Verifying..." : "Confirm Payment"}

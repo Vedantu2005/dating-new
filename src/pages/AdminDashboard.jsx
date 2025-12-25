@@ -1,40 +1,42 @@
 import React, { useEffect, useState } from 'react';
 import { 
     getFirestore, collection, query, where, onSnapshot, 
-    doc, writeBatch, serverTimestamp 
+    doc, writeBatch, serverTimestamp, getDoc 
 } from "firebase/firestore";
 import { 
     LogOut, CheckCircle, XCircle, 
     Lock, User, Eye, EyeOff, ShieldCheck 
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import app from '../firebaseConfig';
 import { ConfirmModal, AlertModal } from '../components/CustomModals'; 
 
 const AdminDashboard = () => {
-    // --- AUTHENTICATION STATE ---
+    // --- 1. AUTHENTICATION STATE ---
     const [isAuthenticated, setIsAuthenticated] = useState(() => {
         return sessionStorage.getItem('isAdminAuthenticated') === 'true';
     });
 
-    // --- LOGIN FORM STATE ---
+    // --- 2. LOCAL STATE ---
+    const [requests, setRequests] = useState([]);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loginError, setLoginError] = useState('');
     const [showPassword, setShowPassword] = useState(false);
 
-    // --- DASHBOARD DATA STATE ---
-    const [requests, setRequests] = useState([]);
     const db = getFirestore(app);
+    const navigate = useNavigate();
 
-    // --- MODAL STATE MANAGEMENT ---
+    // --- MODAL STATE ---
     const [confirmData, setConfirmData] = useState({ 
         isOpen: false, title: '', message: '', action: null, isDestructive: false, confirmText: 'Confirm'
     });
+    
     const [alertData, setAlertData] = useState({ 
         isOpen: false, title: '', message: '', type: 'success' 
     });
 
-    // --- EFFECT: FETCH REQUESTS (Only when authenticated) ---
+    // --- 3. FETCH REQUESTS ---
     useEffect(() => {
         if (!isAuthenticated) return;
 
@@ -46,10 +48,9 @@ const AdminDashboard = () => {
         return () => unsubscribe();
     }, [isAuthenticated, db]);
 
-    // --- LOGIN LOGIC ---
+    // --- 4. LOGIN HANDLER ---
     const handleLogin = (e) => {
         e.preventDefault();
-        // Hardcoded Admin Credentials Check
         if (email === 'honey@gmail.com' && password === 'Honey@123') {
             sessionStorage.setItem('isAdminAuthenticated', 'true');
             setIsAuthenticated(true);
@@ -59,7 +60,7 @@ const AdminDashboard = () => {
         }
     };
 
-    // --- LOGOUT LOGIC ---
+    // --- 5. LOGOUT HANDLER ---
     const handleLogoutClick = () => {
         setConfirmData({
             isOpen: true,
@@ -76,14 +77,14 @@ const AdminDashboard = () => {
         });
     };
 
-    // --- APPROVE LOGIC ---
+    // --- 6. APPROVE LOGIC (STRICT DAY COUNTS) ---
     const initiateApprove = (req) => {
         setConfirmData({
             isOpen: true,
-            title: "Approve Payment?",
-            message: `Please confirm you received ₹${req.amount} from ${req.userName} (Txn: ${req.transactionId})`,
+            title: "Approve & Activate?",
+            message: `Activate ${req.planId} for ${req.userName}?`,
             isDestructive: false,
-            confirmText: "Approve & Activate",
+            confirmText: "Approve",
             action: () => executeApprove(req)
         });
     };
@@ -96,43 +97,96 @@ const AdminDashboard = () => {
             const requestRef = doc(db, "payment_requests", req.id);
             batch.update(requestRef, { status: "approved", processedAt: serverTimestamp() });
 
-            // B. Update User Subscription
+            // B. Get User to check for existing plan (Smart Renewal)
             const userRef = doc(db, "users", req.userId);
-            const expiryDate = new Date();
-            expiryDate.setDate(expiryDate.getDate() + 30);
+            const userSnap = await getDoc(userRef);
+            const userData = userSnap.data();
 
+            // --- DATE CALCULATION LOGIC ---
+            let baseDate = new Date(); // Start from "Now"
+            const planType = (req.planId || '').toLowerCase().trim();
+            const currentTier = (userData?.subscriptionTier || '').toLowerCase().trim();
+
+            // Check existing expiry safely
+            let existingExpiry = null;
+            if (userData?.subscriptionExpiry) {
+                if (typeof userData.subscriptionExpiry.toDate === 'function') {
+                    existingExpiry = userData.subscriptionExpiry.toDate();
+                } else {
+                    existingExpiry = new Date(userData.subscriptionExpiry);
+                }
+            }
+
+            const isFuture = existingExpiry && !isNaN(existingExpiry) && existingExpiry > new Date();
+
+            // RENEWAL: If renewing the SAME plan and it's still active, extend the existing date
+            if (planType === currentTier && isFuture) {
+                baseDate = existingExpiry;
+            }
+            // NEW PLAN: Start from Today (baseDate remains new Date())
+
+            // --- APPLY EXACT VALIDITY DAYS ---
+            if (planType.includes('weekly')) {
+                baseDate.setDate(baseDate.getDate() + 7); // Exactly 7 Days
+            } else if (planType.includes('platinum')) {
+                baseDate.setDate(baseDate.getDate() + 90); // Exactly 90 Days
+            } else if (planType.includes('gold')) {
+                baseDate.setDate(baseDate.getDate() + 30); // Exactly 30 Days
+            } else {
+                // Fallback for unknown plans (default to 30 days)
+                baseDate.setDate(baseDate.getDate() + 30); 
+            }
+            // -----------------------------
+
+            const isoDate = baseDate.toISOString();
+
+            // C. Update User Subscription
             batch.update(userRef, {
                 subscriptionTier: req.planId,
                 isPremium: true,
                 subscriptionDate: new Date().toISOString(),
-                subscriptionExpiry: expiryDate.toISOString()
+                subscriptionExpiry: isoDate
             });
 
-            // C. Update Profile Artifact (for UI)
-            const artifactRef = doc(db, `artifacts/default-app-id/users/${req.userId}/profile/data`);
-            batch.set(artifactRef, { subscriptionTier: req.planId }, { merge: true });
+            // D. Update Profile Artifact (Critical for UI Sync)
+            // Use dynamic app ID path if available, or fallback to 'default-app-id'
+            // NOTE: Ensure this matches your Profile.jsx configuration
+            const appId = typeof window !== 'undefined' && window.__app_id ? window.__app_id : 'default-app-id';
+            const artifactRef = doc(db, `artifacts/${appId}/users/${req.userId}/profile/data`);
+            
+            batch.set(artifactRef, { 
+                subscriptionTier: req.planId,
+                subscriptionExpiry: isoDate 
+            }, { merge: true });
 
             await batch.commit();
 
             setAlertData({
-                isOpen: true, title: "Plan Activated", message: `${req.userName} is now a ${req.planId} member.`, type: "success"
+                isOpen: true,
+                title: "Plan Activated",
+                message: `${req.userName} is now ${req.planId}. Expires: ${baseDate.toLocaleDateString()}`,
+                type: "success"
             });
+
         } catch (error) {
             console.error("Error approving:", error);
             setAlertData({
-                isOpen: true, title: "Error", message: "Failed to update database. Check console.", type: "error"
+                isOpen: true,
+                title: "Error",
+                message: "Failed to update database.",
+                type: "error"
             });
         }
     };
 
-    // --- REJECT LOGIC ---
+    // --- 7. REJECT LOGIC ---
     const initiateReject = (req) => {
         setConfirmData({
             isOpen: true,
             title: "Reject Payment?",
-            message: `Are you sure you want to reject this request from ${req.userName}? This cannot be undone.`,
+            message: `Reject request from ${req.userName}? This cannot be undone.`,
             isDestructive: true,
-            confirmText: "Reject Request",
+            confirmText: "Reject",
             action: () => executeReject(req)
         });
     };
@@ -145,7 +199,10 @@ const AdminDashboard = () => {
             await batch.commit();
             
             setAlertData({
-                isOpen: true, title: "Request Rejected", message: "The payment request has been marked as rejected.", type: "success"
+                isOpen: true,
+                title: "Request Rejected",
+                message: "The payment request has been rejected.",
+                type: "success" 
             });
         } catch (error) {
             console.error("Error rejecting:", error);
@@ -153,12 +210,11 @@ const AdminDashboard = () => {
         }
     };
 
-    // ================= VIEW: LOGIN SCREEN =================
+    // --- RENDER: LOGIN SCREEN ---
     if (!isAuthenticated) {
         return (
             <div className="min-h-screen bg-black flex items-center justify-center p-4 font-inter">
                 <div className="w-full max-w-md bg-zinc-900 border border-white/10 p-8 rounded-3xl shadow-2xl relative overflow-hidden">
-                    {/* Decorative Background Blur */}
                     <div className="absolute top-[-50px] right-[-50px] w-32 h-32 bg-sky-600/20 rounded-full blur-3xl pointer-events-none"></div>
                     <div className="absolute bottom-[-50px] left-[-50px] w-32 h-32 bg-purple-600/20 rounded-full blur-3xl pointer-events-none"></div>
 
@@ -226,10 +282,9 @@ const AdminDashboard = () => {
         );
     }
 
-    // ================= VIEW: DASHBOARD =================
+    // --- RENDER: DASHBOARD ---
     return (
         <div className="min-h-screen bg-black text-white p-6 font-inter">
-            {/* --- CUSTOM POPUPS --- */}
             <ConfirmModal 
                 isOpen={confirmData.isOpen}
                 onClose={() => setConfirmData({ ...confirmData, isOpen: false })}
@@ -248,7 +303,6 @@ const AdminDashboard = () => {
                 type={alertData.type}
             />
 
-            {/* --- HEADER --- */}
             <div className="flex justify-between items-center mb-8 border-b border-white/10 pb-4 max-w-6xl mx-auto">
                 <div>
                     <h1 className="text-3xl font-black text-white tracking-tight">Admin Dashboard</h1>
@@ -262,7 +316,6 @@ const AdminDashboard = () => {
                 </button>
             </div>
             
-            {/* --- REQUESTS LIST --- */}
             <div className="max-w-6xl mx-auto">
                 {requests.length === 0 ? (
                     <div className="text-center py-24 bg-zinc-900/50 border border-white/5 rounded-3xl border-dashed">
@@ -273,14 +326,11 @@ const AdminDashboard = () => {
                     <div className="grid gap-4">
                         {requests.map(req => (
                             <div key={req.id} className="bg-zinc-900 border border-white/10 p-5 rounded-2xl flex flex-col md:flex-row justify-between items-center gap-6 shadow-xl hover:border-white/20 transition-all">
-                                
-                                {/* User Info */}
                                 <div className="flex-1 w-full">
                                     <div className="flex items-center gap-3 mb-1">
                                         <h3 className="font-bold text-lg text-white">{req.userName}</h3>
                                         <span className="text-xs bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded-md border border-white/5">{req.userEmail}</span>
                                     </div>
-                                    
                                     <div className="flex flex-wrap items-center gap-3 text-sm mt-2">
                                         <div className="flex items-center gap-1.5 text-zinc-400">
                                             <span>Plan:</span>
@@ -301,8 +351,6 @@ const AdminDashboard = () => {
                                         Requested: {req.createdAt?.toDate().toLocaleString()}
                                     </p>
                                 </div>
-                                
-                                {/* Actions */}
                                 <div className="flex gap-3 w-full md:w-auto">
                                     <button 
                                         onClick={() => initiateApprove(req)}

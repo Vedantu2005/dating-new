@@ -189,24 +189,26 @@ const DoubleDateBanner = ({ user }) => {
   );
 };
 
+// --- UPDATED ACTION GRID ---
 const ActionGrid = ({ onNavigate }) => (
   <div className="px-4 mt-8">
     <h3 className="text-lg font-bold text-white mb-3 px-1">Boost Your Profile</h3>
     <div className="grid grid-cols-2 gap-3">
-      {/* We pass specific Boost Plans directly here */}
+      {/* "Super Likes" -> Redirects to Gold (89) */}
       <ActionCard 
         icon={<Star size={36} className="text-purple-600" fill="currentColor" />} 
         title="Super Likes" 
-        subtitle="Stand Out" 
+        subtitle="Get Gold" 
         subtitleColor="text-purple-600" 
-        onClick={() => onNavigate('premium', { type: 'Super Likes', price: 99 })} 
+        onClick={() => onNavigate('premium', { type: 'Gold', price: 89 })} 
       />
+      {/* "Boosts" -> Redirects to Platinum (199) */}
       <ActionCard 
         icon={<Zap size={36} className="text-red-500" fill="currentColor" />} 
         title="Boosts" 
-        subtitle="Be Top Profile" 
+        subtitle="Get Platinum" 
         subtitleColor="text-red-500" 
-        onClick={() => onNavigate('premium', { type: 'Profile Boost', price: 149 })} 
+        onClick={() => onNavigate('premium', { type: 'Platinum', price: 199 })} 
       />
     </div>
   </div>
@@ -256,15 +258,16 @@ const UpgradeCard = ({ data, freeFeatures, onUpgrade, isCurrent }) => (
   </div>
 );
 
+// --- UPDATED UPGRADE CAROUSEL ---
 const UpgradeCarousel = ({ onUpgrade, currentTier }) => {
   const [activeIndex, setActiveIndex] = useState(1);
   const scrollRef = useRef(null);
   
-  // PLANS DEFINITION
+  // PLANS DEFINITION (Updated Prices: Gold 89, Platinum 199)
   const tiers = [
-    { type: 'Weekly', price: 29, gradient: 'from-sky-600 to-blue-900', textColor: 'text-white', btnColor: 'bg-white', btnTextColor: 'text-sky-900', features: ['Limited Likes', 'Limited Chats', 'Weekly Blue Tick'] },
-    { type: 'Gold', price: 199, gradient: 'from-yellow-300 via-amber-400 to-orange-400', textColor: 'text-black', btnColor: 'bg-black', btnTextColor: 'text-yellow-400', features: ['Unlimited Likes', 'Unlimited Chats', 'Gold Tick'] },
-    { type: 'Platinum', price: 499, gradient: 'from-zinc-700 via-zinc-800 to-black', textColor: 'text-white', btnColor: 'bg-white', btnTextColor: 'text-black', features: ['Rewind Swipe', 'Profile Boost', 'Grey Tick'] },
+    { type: 'Weekly', price: 29, gradient: 'from-sky-600 to-blue-900', textColor: 'text-white', btnColor: 'bg-white', btnTextColor: 'text-sky-900', features: ['Limited Likes', 'Limited Chats', 'Limited Swipes'] },
+    { type: 'Gold', price: 89, gradient: 'from-yellow-300 via-amber-400 to-orange-400', textColor: 'text-black', btnColor: 'bg-black', btnTextColor: 'text-yellow-400', features: ['Unlimited Likes', 'Unlimited Chats', 'Unlimited Swipes'] },
+    { type: 'Platinum', price: 199, gradient: 'from-zinc-700 via-zinc-800 to-black', textColor: 'text-white', btnColor: 'bg-white', btnTextColor: 'text-black', features: ['Rewind Swipe', 'Profile Boost', 'See who likes you'] },
   ];
   const freeFeatures = [];
 
@@ -381,19 +384,45 @@ export default function Profile() {
 
   useEffect(() => {
     if (dbInstance && userId && user) {
+      
+      // 1. Listen to Artifacts (General Profile Data)
       const unsubArtifacts = onSnapshot(doc(dbInstance, getUserDocPath(userId)), (docSnap) => {
         const artifactData = docSnap.exists() ? docSnap.data() : {};
+        
         setUserData(prev => {
            const existingProfile = prev?.profile || {};
-           return { auth: user, profile: { ...existingProfile, ...artifactData, name: user.displayName, age: artifactData.age || "" } };
+           
+           // CRITICAL FIX: Destructure to EXCLUDE subscription fields from artifactData
+           // This prevents old artifact data from overwriting the fresh data from 'users'
+           const { subscriptionTier, subscriptionExpiry, ...safeArtifactData } = artifactData;
+
+           return { 
+             auth: user, 
+             profile: { 
+               ...existingProfile, 
+               ...safeArtifactData, // Spread only safe data (name, bio, photos)
+               name: user.displayName, 
+               age: artifactData.age || "" 
+             } 
+           };
         });
       });
+
+      // 2. Listen to Users Collection (The Source of Truth for Subscriptions)
       const unsubUsers = onSnapshot(doc(dbInstance, "users", userId), (docSnap) => {
         if (docSnap.exists()) {
             const userDocData = docSnap.data();
             setUserData(prev => {
                 const existingProfile = prev?.profile || {};
-                return { auth: user, profile: { ...existingProfile, subscriptionTier: userDocData.subscriptionTier } };
+                return { 
+                  auth: user, 
+                  profile: { 
+                    ...existingProfile, 
+                    // READ BOTH TIER AND EXPIRY FROM HERE
+                    subscriptionTier: userDocData.subscriptionTier,
+                    subscriptionExpiry: userDocData.subscriptionExpiry 
+                  } 
+                };
             });
         }
       });
