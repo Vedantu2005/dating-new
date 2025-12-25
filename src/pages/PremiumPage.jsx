@@ -35,7 +35,7 @@ const PremiumPage = () => {
             setUserEmail(user.email || "");
         }
         // Generate QR Code
-        const rawUpiLink = `upi://pay?pa=vedantinamdar8@oksbi&pn=BSSS_Dating&am=${stateData.price}.00&cu=INR&tn=${stateData.type}_Plan`;
+        const rawUpiLink = `upi://pay?pa=hhoneyraghuwanshi-1@okhdfcbank&pn=BSSS_Dating&am=${stateData.price}.00&cu=INR&tn=${stateData.type}_Plan`;
         const encodedUpiLink = encodeURIComponent(rawUpiLink);
         setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=10&data=${encodedUpiLink}`);
     } else {
