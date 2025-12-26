@@ -986,11 +986,9 @@ export default function EditProfile({
 
         {activeTab === "edit" ? (
           <main className="pb-32 bg-black px-4 lg:px-8 pt-4">
-            <div className="p-5 bg-zinc-900 rounded-[2rem] border border-white/5 shadow-2xl mt-4">
-              <h3 className="text-xs font-black text-zinc-500 uppercase tracking-[0.2em] mb-4">
-                Profile Photos (Max {MAX_PHOTOS})
-              </h3>
-              <div className=" grid grid-cols-3 gap-3 sm:grid-cols-6">
+           {/* UPDATED: Increased margin-top (mt-24 for mobile, mt-10 for laptop) and removed the text title */}
+<div className="p-5 bg-zinc-900 rounded-[2rem] border border-white/5 shadow-2xl mt-24 lg:mt-12">
+  <div className=" grid grid-cols-3 gap-3 sm:grid-cols-6">
                 {photos.slice(0, MAX_PHOTOS).map((photo, index) => (
                   <div
                     key={index}

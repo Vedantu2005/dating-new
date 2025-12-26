@@ -4,14 +4,14 @@ import {
   Send,
   Search,
   Heart,
-  Image,
   Loader2,
   MoreVertical,
-  Sparkles 
+  Sparkles,
+  X 
 } from "lucide-react";
-import { db, storage, realtimeDB } from "../firebaseConfig";
+import { db, realtimeDB } from "../firebaseConfig"; // Removed 'storage'
 import { useAuth } from "../context/AuthContext";
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   collection,
   query,
@@ -26,11 +26,6 @@ import {
   updateDoc,
   increment
 } from "firebase/firestore";
-import {
-  ref as storageRef,
-  uploadBytes,
-  getDownloadURL,
-} from "firebase/storage";
 import { ref as rtdbRef, onValue } from "firebase/database";
 
 // Custom styles to hide scrollbars
@@ -43,6 +38,25 @@ const customStyles = `
     scrollbar-width: none;
   }
 `;
+
+// --- COMPONENT: Full Screen Image Modal ---
+// Kept in case you still want to view existing images sent by others
+const ImageModal = ({ src, onClose }) => {
+    if (!src) return null;
+    return (
+        <div className="fixed inset-0 z-[150] bg-black/95 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={onClose}>
+            <button onClick={onClose} className="absolute top-6 right-6 p-2 bg-zinc-800/50 rounded-full text-white hover:bg-zinc-700 transition-colors">
+                <X className="w-6 h-6" />
+            </button>
+            <img 
+                src={src} 
+                alt="Full screen" 
+                className="max-w-full max-h-[85vh] rounded-lg shadow-2xl object-contain"
+                onClick={(e) => e.stopPropagation()} 
+            />
+        </div>
+    );
+};
 
 const UpgradeModal = ({ isOpen, onClose, title, message }) => {
     const navigate = useNavigate();
@@ -99,14 +113,13 @@ const ChatList = ({ setSelectedChat, selectedChatId, currentUserId }) => {
   useEffect(() => {
     if (!currentUserId) { setIsLoading(false); return; }
     
-    // Safety check for query
     try {
         const matchesQuery = query(collection(db, "matches"), where(`usersIncluded.${currentUserId}`, "==", true));
         
         const unsubscribe = onSnapshot(matchesQuery, async (snapshot) => {
             const promises = snapshot.docs.map(async (docSnap) => {
                 const data = docSnap.data();
-                if (!data.users) return null; // Safety check
+                if (!data.users) return null;
                 
                 const otherUserId = data.users.find(uid => uid !== currentUserId);
                 if (!otherUserId) return null;
@@ -178,12 +191,11 @@ const ChatList = ({ setSelectedChat, selectedChatId, currentUserId }) => {
 const IndividualChat = ({ chat, onBack, currentUserId }) => {
   const [messageText, setMessageText] = useState("");
   const [messages, setMessages] = useState([]);
-  const [uploading, setUploading] = useState(false);
   const [userStatus, setUserStatus] = useState(null);
   const [modalData, setModalData] = useState({ isOpen: false, title: "", message: "" });
+  const [viewImage, setViewImage] = useState(null); // For fullscreen image
   const scrollRef = useRef(null);
-  const fileInputRef = useRef(null); // Ref for file input
-  const chatId = getChatId(currentUserId, chat?.id); // Safe Access
+  const chatId = getChatId(currentUserId, chat?.id);
 
   useEffect(() => {
     if (!chat?.id) return;
@@ -223,16 +235,13 @@ const IndividualChat = ({ chat, onBack, currentUserId }) => {
         const userData = userSnap.data();
         const tier = (userData?.subscriptionTier || 'Free').toLowerCase();
 
-        // Unlimited Tiers
         if (tier === 'platinum' || tier === 'gold') return true;
 
-        // Free Tier: Locked
         if (tier === 'free') {
             setModalData({ isOpen: true, title: "Chat Locked 🔒", message: "Chat is a Premium feature. Upgrade to unlock!" });
             return false;
         }
 
-        // Weekly Tier: Limit 30
         if (tier === 'weekly') {
             const today = new Date().toISOString().split('T')[0];
             const usageRef = doc(db, "users", currentUserId, "usage", "daily");
@@ -247,7 +256,6 @@ const IndividualChat = ({ chat, onBack, currentUserId }) => {
             }
             return true;
         }
-        
         return true;
     } catch (e) { console.error(e); return true; }
   };
@@ -278,57 +286,9 @@ const IndividualChat = ({ chat, onBack, currentUserId }) => {
         }
       }, { merge: true });
 
-      // TRACK USAGE
       updateUsage();
 
     } catch (e) { console.error(e); }
-  };
-
-  const handleFileUpload = async (file) => {
-    if (!file || uploading || !chatId) return;
-    
-    // Check limits before starting upload
-    const canSend = await checkMessageLimit();
-    if (!canSend) {
-        if (fileInputRef.current) fileInputRef.current.value = ""; // Clear input
-        return;
-    }
-
-    setUploading(true);
-    
-    try {
-        const fileRef = storageRef(storage, `chat_files/${chatId}/${Date.now()}_${file.name}`);
-        const snap = await uploadBytes(fileRef, file);
-        const url = await getDownloadURL(snap.ref);
-       
-        await addDoc(collection(db, "chats", chatId, "messages"), { 
-           senderId: currentUserId, 
-           recipientId: chat.id, 
-           content: url, 
-           type: "image", 
-           createdAt: serverTimestamp() 
-        });
-
-        await setDoc(doc(db, "matches", chatId), { 
-           lastMessage: "📷 Photo", 
-           timestamp: serverTimestamp(),
-           users: [currentUserId, chat.id],
-           usersIncluded: {
-            [currentUserId]: true,
-            [chat.id]: true
-           }
-        }, { merge: true });
-
-        // TRACK USAGE
-        updateUsage();
-
-    } catch (error) {
-        console.error("Image upload failed:", error);
-        alert("Failed to send image. Please try again.");
-    } finally {
-        setUploading(false);
-        if (fileInputRef.current) fileInputRef.current.value = ""; // Clear input to allow re-selection
-    }
   };
 
   if (!chat) return null;
@@ -336,6 +296,9 @@ const IndividualChat = ({ chat, onBack, currentUserId }) => {
   return (
     <div className="flex flex-col h-full bg-black relative overflow-hidden">
       <UpgradeModal isOpen={modalData.isOpen} onClose={() => setModalData({ ...modalData, isOpen: false })} title={modalData.title} message={modalData.message} />
+      
+      {/* Full Screen Image Modal */}
+      <ImageModal src={viewImage} onClose={() => setViewImage(null)} />
 
       {/* Header */}
       <div className="flex-shrink-0 flex items-center justify-between px-5 py-4 bg-black/50 backdrop-blur-xl border-b border-white/5 z-20 h-[80px]">
@@ -358,7 +321,24 @@ const IndividualChat = ({ chat, onBack, currentUserId }) => {
         {messages.map((msg) => (
             <div key={msg.id} className={`flex ${msg.isMe ? "justify-end" : "justify-start"}`}>
               <div className={`max-w-[80%] px-5 py-3.5 shadow-xl ${msg.isMe ? "bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-[1.5rem] rounded-tr-none" : "bg-zinc-900 text-gray-100 rounded-[1.5rem] rounded-tl-none border border-white/5"}`}>
-                {msg.type === "image" ? ( <img src={msg.content} className="rounded-xl max-h-72 w-full object-cover" alt="sent" /> ) : ( <p className="leading-relaxed text-[15px] whitespace-pre-wrap">{msg.text}</p> )}
+                
+                {msg.type === "image" ? ( 
+                   <div 
+                      className="cursor-pointer overflow-hidden rounded-xl"
+                      onClick={() => setViewImage(msg.content)}
+                   >
+                       <img 
+                          src={msg.content} 
+                          className="max-w-full rounded-lg object-contain bg-black/20" 
+                          style={{ maxHeight: '300px' }}
+                          alt="sent" 
+                          loading="lazy"
+                        />
+                   </div>
+                ) : ( 
+                   <p className="leading-relaxed text-[15px] whitespace-pre-wrap">{msg.text}</p> 
+                )}
+                
                 <div className={`text-[10px] mt-1.5 font-bold uppercase tracking-widest ${msg.isMe ? "text-white/60" : "text-gray-500"}`}>
                    {msg.createdAt ? msg.createdAt.toDate().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : "..."}
                 </div>
@@ -367,27 +347,18 @@ const IndividualChat = ({ chat, onBack, currentUserId }) => {
         ))}
       </div>
 
-      {/* Input Bar */}
+      {/* Input Bar - Simplified without image upload */}
       <div className="flex-shrink-0 p-4 bg-black/80 backdrop-blur-2xl border-t border-white/5">
         <div className="max-w-4xl mx-auto flex items-center gap-3 bg-zinc-900 border border-white/10 p-2 rounded-[2rem]">
-          <label className="p-3 text-gray-500 hover:text-sky-400 cursor-pointer bg-white/5 rounded-full transition-colors relative">
-             {uploading ? (
-                 <Loader2 size={22} className="animate-spin text-sky-500" />
-             ) : (
-                 <Image size={22} />
-             )}
-             <input 
-                 type="file" 
-                 hidden 
-                 accept="image/*" 
-                 ref={fileInputRef}
-                 onChange={(e) => handleFileUpload(e.target.files[0])} 
-                 disabled={uploading} 
-             />
-          </label>
-          <input type="text" placeholder="Message..." value={messageText} onChange={(e) => setMessageText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            className="flex-1 bg-transparent border-none focus:ring-0 outline-none text-base text-white placeholder-gray-600 px-2" />
-          <button onClick={handleSend} disabled={!messageText.trim() || uploading} className={`p-3.5 rounded-full transition-all ${messageText.trim() ? "bg-gradient-to-br from-sky-400 to-blue-600 text-black shadow-lg" : "bg-zinc-800 text-gray-600"}`}>
+          <input 
+            type="text" 
+            placeholder="Message..." 
+            value={messageText} 
+            onChange={(e) => setMessageText(e.target.value)} 
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            className="flex-1 bg-transparent border-none focus:ring-0 outline-none text-base text-white placeholder-gray-600 px-4" 
+          />
+          <button onClick={handleSend} disabled={!messageText.trim()} className={`p-3.5 rounded-full transition-all ${messageText.trim() ? "bg-gradient-to-br from-sky-400 to-blue-600 text-black shadow-lg" : "bg-zinc-800 text-gray-600"}`}>
              <Send size={20} />
           </button>
         </div>
@@ -430,7 +401,6 @@ export default function ChatPage() {
   }
 
   return (
-    // FIX: Changed container to be fixed between top header (top-16/20) and bottom nav (bottom-20/0)
     <div className="fixed top-16 bottom-20 md:top-20 md:bottom-0 left-0 right-0 flex bg-black overflow-hidden font-inter">
         <style>{customStyles}</style>
         
