@@ -242,7 +242,8 @@ export default function AuthPage() {
                                     {isLoginView ? "Join our growing community and find meaningful connections. Create your profile today and start your story!" : "Login to explore connections and find people who share your interests and values."}
                                 </p>
                                 <button onClick={() => setView(isLoginView ? 'signup' : 'login')} className="bg-white text-blue-900 font-bold px-12 py-4 rounded-full hover:scale-105 transition-all shadow-xl active:scale-95">
-                                    {isLoginView ? 'Signup Now' : 'Sign In Now'}
+    
+                                    {isLoginView ? 'Sign Up Now' : 'Sign In Now'}
                                 </button>
                             </div>
                         </div>

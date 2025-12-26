@@ -29,3 +29,8 @@ body {
   }
 }
 
+/* Replace '.your-class-name' with the actual class of that text */
+.your-class-name {
+    display: none !important;
+}
+

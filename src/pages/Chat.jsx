@@ -182,6 +182,7 @@ const IndividualChat = ({ chat, onBack, currentUserId }) => {
   const [userStatus, setUserStatus] = useState(null);
   const [modalData, setModalData] = useState({ isOpen: false, title: "", message: "" });
   const scrollRef = useRef(null);
+  const fileInputRef = useRef(null); // Ref for file input
   const chatId = getChatId(currentUserId, chat?.id); // Safe Access
 
   useEffect(() => {
@@ -283,22 +284,32 @@ const IndividualChat = ({ chat, onBack, currentUserId }) => {
     } catch (e) { console.error(e); }
   };
 
-  const handleFileUpload = (file) => {
+  const handleFileUpload = async (file) => {
     if (!file || uploading || !chatId) return;
+    
+    // Check limits before starting upload
+    const canSend = await checkMessageLimit();
+    if (!canSend) {
+        if (fileInputRef.current) fileInputRef.current.value = ""; // Clear input
+        return;
+    }
+
     setUploading(true);
-    const fileRef = storageRef(storage, `chat_files/${chatId}/${Date.now()}_${file.name}`);
-    uploadBytes(fileRef, file).then(snap => getDownloadURL(snap.ref)).then(async url => {
-       if(!(await checkMessageLimit())) { setUploading(false); return; }
+    
+    try {
+        const fileRef = storageRef(storage, `chat_files/${chatId}/${Date.now()}_${file.name}`);
+        const snap = await uploadBytes(fileRef, file);
+        const url = await getDownloadURL(snap.ref);
        
-       await addDoc(collection(db, "chats", chatId, "messages"), { 
+        await addDoc(collection(db, "chats", chatId, "messages"), { 
            senderId: currentUserId, 
            recipientId: chat.id, 
            content: url, 
            type: "image", 
            createdAt: serverTimestamp() 
-       });
+        });
 
-       await setDoc(doc(db, "matches", chatId), { 
+        await setDoc(doc(db, "matches", chatId), { 
            lastMessage: "📷 Photo", 
            timestamp: serverTimestamp(),
            users: [currentUserId, chat.id],
@@ -306,13 +317,18 @@ const IndividualChat = ({ chat, onBack, currentUserId }) => {
             [currentUserId]: true,
             [chat.id]: true
            }
-       }, { merge: true });
+        }, { merge: true });
 
-       // TRACK USAGE
-       updateUsage();
+        // TRACK USAGE
+        updateUsage();
 
-       setUploading(false);
-    });
+    } catch (error) {
+        console.error("Image upload failed:", error);
+        alert("Failed to send image. Please try again.");
+    } finally {
+        setUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = ""; // Clear input to allow re-selection
+    }
   };
 
   if (!chat) return null;
@@ -354,7 +370,21 @@ const IndividualChat = ({ chat, onBack, currentUserId }) => {
       {/* Input Bar */}
       <div className="flex-shrink-0 p-4 bg-black/80 backdrop-blur-2xl border-t border-white/5">
         <div className="max-w-4xl mx-auto flex items-center gap-3 bg-zinc-900 border border-white/10 p-2 rounded-[2rem]">
-          <label className="p-3 text-gray-500 hover:text-sky-400 cursor-pointer bg-white/5 rounded-full"><Image size={22} /><input type="file" hidden accept="image/*" onChange={(e) => handleFileUpload(e.target.files[0])} disabled={uploading} /></label>
+          <label className="p-3 text-gray-500 hover:text-sky-400 cursor-pointer bg-white/5 rounded-full transition-colors relative">
+             {uploading ? (
+                 <Loader2 size={22} className="animate-spin text-sky-500" />
+             ) : (
+                 <Image size={22} />
+             )}
+             <input 
+                 type="file" 
+                 hidden 
+                 accept="image/*" 
+                 ref={fileInputRef}
+                 onChange={(e) => handleFileUpload(e.target.files[0])} 
+                 disabled={uploading} 
+             />
+          </label>
           <input type="text" placeholder="Message..." value={messageText} onChange={(e) => setMessageText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSend()}
             className="flex-1 bg-transparent border-none focus:ring-0 outline-none text-base text-white placeholder-gray-600 px-2" />
           <button onClick={handleSend} disabled={!messageText.trim() || uploading} className={`p-3.5 rounded-full transition-all ${messageText.trim() ? "bg-gradient-to-br from-sky-400 to-blue-600 text-black shadow-lg" : "bg-zinc-800 text-gray-600"}`}>
@@ -372,7 +402,6 @@ export default function ChatPage() {
   const location = useLocation();
 
   useEffect(() => {
-    // Only run if we have state and haven't already selected this chat
     if (location.state && location.state.directChat) {
       const person = location.state.directChat;
       
@@ -385,9 +414,6 @@ export default function ChatPage() {
           };
           
           setSelectedChat(newChat);
-          
-          // Use replace to clear state without a reload loop
-          // This keeps the chat open but cleans the history state
           window.history.replaceState({}, document.title);
       }
     }
@@ -395,7 +421,6 @@ export default function ChatPage() {
   
   if (loading) return <div className="min-h-screen bg-black flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-sky-500" /></div>;
 
-  // CRITICAL FIX: Prevent crash if currentUser is not loaded yet
   if (!currentUser) {
       return (
           <div className="min-h-screen bg-black flex items-center justify-center text-white">
@@ -405,7 +430,8 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="h-[calc(100dvh-4rem)] w-full flex bg-black overflow-hidden font-inter fixed inset-x-0 bottom-0">
+    // FIX: Changed container to be fixed between top header (top-16/20) and bottom nav (bottom-20/0)
+    <div className="fixed top-16 bottom-20 md:top-20 md:bottom-0 left-0 right-0 flex bg-black overflow-hidden font-inter">
         <style>{customStyles}</style>
         
         <div className={`h-full shrink-0 overflow-hidden ${selectedChat ? "hidden md:block w-full md:w-[350px] lg:w-[420px]" : "w-full md:w-[350px] lg:w-[420px]"}`}>

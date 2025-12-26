@@ -7,7 +7,7 @@ import {
   onSnapshot,
   doc,
   updateDoc,
-  deleteDoc,
+  deleteDoc, // Keep imports even if unused to prevent errors
   query,
   orderBy,
   serverTimestamp,
@@ -25,7 +25,7 @@ const customStyles = `
   html, body {
     -ms-overflow-style: none;
     scrollbar-width: none;
-    background-color: black; /* Prevent white flash on scroll */
+    background-color: black; 
   }
 
   @keyframes slideIn {
@@ -38,6 +38,7 @@ const ConfessionPage = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [confessions, setConfessions] = useState([]);
   const [newConfession, setNewConfession] = useState("");
+  // Unused state can be kept or removed
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState("");
 
@@ -128,12 +129,10 @@ const ConfessionPage = () => {
     <>
       <style>{customStyles}</style>
 
-      {/* FIX: Changed 'min-h-screen' to a simple div with no height constraints.
-          This allows the main page body to grow naturally with the content,
-          eliminating the need for an inner scrollbar.
-      */}
-      <div className="w-full bg-black p-4 md:p-8 relative">
+      {/* CHANGED: Added 'overflow-x-hidden' to prevent horizontal scrolling/moving */}
+      <div className="w-full bg-black p-4 md:p-8 relative overflow-x-hidden">
         
+        {/* Background blobs are now safely contained by overflow-x-hidden */}
         <div className="absolute top-[-10%] left-[-10%] w-72 h-72 bg-sky-400/10 blur-[100px] rounded-full pointer-events-none"></div>
         <div className="absolute bottom-[-10%] right-[-10%] w-72 h-72 bg-blue-900/20 blur-[100px] rounded-full pointer-events-none"></div>
 
@@ -178,8 +177,8 @@ const ConfessionPage = () => {
                   <div className="w-10 h-10 rounded-full bg-sky-500/10 flex items-center justify-center text-sky-400">
                     <User size={20} />
                   </div>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-bold text-white">{confession.userName}</span>
+                  <div className="flex flex-col justify-center">
+                    {/* CHANGED: Removed the name span, kept only the date */}
                     <span className="text-[10px] text-gray-500 font-medium">{formatDate(confession.createdAt)}</span>
                   </div>
                 </div>
