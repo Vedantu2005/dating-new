@@ -9,7 +9,7 @@ import {
   Sparkles,
   X 
 } from "lucide-react";
-import { db, realtimeDB } from "../firebaseConfig"; // Removed 'storage'
+import { db, realtimeDB } from "../firebaseConfig";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -40,7 +40,6 @@ const customStyles = `
 `;
 
 // --- COMPONENT: Full Screen Image Modal ---
-// Kept in case you still want to view existing images sent by others
 const ImageModal = ({ src, onClose }) => {
     if (!src) return null;
     return (
@@ -336,7 +335,8 @@ const IndividualChat = ({ chat, onBack, currentUserId }) => {
                         />
                    </div>
                 ) : ( 
-                   <p className="leading-relaxed text-[15px] whitespace-pre-wrap">{msg.text}</p> 
+                   /* Added break-words and break-all to fix overflow */
+                   <p className="leading-relaxed text-[15px] whitespace-pre-wrap break-words break-all">{msg.text}</p> 
                 )}
                 
                 <div className={`text-[10px] mt-1.5 font-bold uppercase tracking-widest ${msg.isMe ? "text-white/60" : "text-gray-500"}`}>

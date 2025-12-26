@@ -91,6 +91,13 @@ const PremiumPage = () => {
     }
   };
 
+  // Helper to get the display text based on plan type
+  const getPlanDisplayText = (type) => {
+    if (type === 'Gold') return 'Gold (Monthly Plan)';
+    if (type === 'Platinum') return 'Platinum (3 Months Plan)';
+    return 'Weekly Plan';
+  };
+
   if (!selectedPlan) return null;
 
   return (
@@ -113,7 +120,9 @@ const PremiumPage = () => {
         <div className="text-center mb-6 mt-2">
             <h2 className="text-xl font-black text-white mb-1 uppercase tracking-tight">Complete Payment</h2>
             <p className="text-sm text-gray-400">
-              Upgrade to <span className={`font-bold ${selectedPlan.type === 'Gold' ? 'text-yellow-400' : 'text-sky-400'}`}>{selectedPlan.type}</span> for <span className="text-white font-bold">₹{selectedPlan.price}</span>
+              Upgrade to <span className={`font-bold ${selectedPlan.type === 'Gold' ? 'text-yellow-400' : 'text-sky-400'}`}>
+                {getPlanDisplayText(selectedPlan.type)}
+              </span> for <span className="text-white font-bold">₹{selectedPlan.price}</span>
             </p>
         </div>
 

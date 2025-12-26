@@ -260,7 +260,7 @@ const UpgradeCard = ({ data, freeFeatures, onUpgrade, isCurrent }) => (
 
 // --- UPDATED UPGRADE CAROUSEL ---
 const UpgradeCarousel = ({ onUpgrade, currentTier }) => {
-  const [activeIndex, setActiveIndex] = useState(1);
+  const [activeIndex, setActiveIndex] = useState(0); // Changed from 1 to 0
   const scrollRef = useRef(null);
   
   // PLANS DEFINITION (Updated Prices: Gold 89, Platinum 199)
